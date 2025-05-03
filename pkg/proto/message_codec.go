@@ -7,12 +7,14 @@ import (
 )
 
 func init() {
-	RegisterMessage(100101, func() Message {
-		return &NewOrder{}
-	})
-	RegisterMessage(200102, func() Message {
-		return &ExecutionConfirm{}
-	})
+	RegisterMessage(1, func() Message { return &Logon{} })
+	RegisterMessage(2, func() Message { return &Logout{} })
+	RegisterMessage(3, func() Message { return &Heartbeat{} })
+	RegisterMessage(100101, func() Message { return &NewOrder{} })
+	RegisterMessage(200102, func() Message { return &ExecutionConfirm{} })
+	RegisterMessage(200115, func() Message { return &ExecutionReport{} })
+	RegisterMessage(190007, func() Message { return &CancelRequest{} })
+	RegisterMessage(290008, func() Message { return &CancelReject{} })
 }
 
 // 全局消息注册器
