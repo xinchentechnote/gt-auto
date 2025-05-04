@@ -1,16 +1,37 @@
 ## Overview
 GT-Auto is a gateway auto test tool designed for financial trading systems. It provides a framework for automating the testing of message exchanges between an Order Management System (OMS) and a Trading Gateway (TGW).
+- Here is the system architecture diagram for the production environment:
 ```mermaid
 graph LR
-    OMS[OMS<br>（柜台系统）]
-    GW1[GW<br>（交易报盘网关）]
-    GW2[GW<br>（风控接入网关）]
-    TGW[TGW<br>（交易所）]
+    OMS["OMS<br>(Order Management System)"]
+    GW1["GW<br>(Trading Gateway)"]
+    GW2["GW<br>(Risk Control Gateway)"]
+    TGW["TGW<br>(Exchange)"]
 
     OMS --> GW1
     OMS --> GW2
     GW1 --> TGW
     GW2 --> TGW
+```
+- System architecture diagram for the test environment:
+```mermaid
+graph LR
+    OMS[OmsSimulator]
+    GW[Target Gateway]
+    TGW[TgwSimulator]
+
+    OMS --> GW
+    GW --> TGW
+```
+- System architecture diagram for the test environment with a focus on the input and output components:
+```mermaid
+graph LR
+    Input[InputSimulator]
+    Component[Target Component]
+    Output[OutputSimulator]
+
+    Input --> Component
+    Component --> Output
 ```
 ##  Supported Protocol Types
 
