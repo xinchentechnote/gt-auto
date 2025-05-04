@@ -7,8 +7,9 @@ import (
 	"strings"
 )
 
+// TestStep represents a single step in a test case.
 type TestStep struct {
-	StepId        string
+	StepID        string
 	SleepTime     string
 	Desc          string
 	ActionType    string
@@ -17,20 +18,24 @@ type TestStep struct {
 	TestDataSheet string
 }
 
+// TestCase represents a test case with its steps.
 type TestCase struct {
 	CaseNo    string
 	CaseTitle string
 	Steps     []TestStep
 }
 
+// CaseParser is an interface for parsing test cases from different formats.
 type CaseParser interface {
 	Parse() ([]TestCase, error)
 }
 
+// CSVCaseParser implements the CaseParser interface for CSV files.
 type CSVCaseParser struct {
 	FilePath string
 }
 
+// Parse parses CSV data and returns test cases.
 func (p *CSVCaseParser) Parse() ([]TestCase, error) {
 	file, err := os.Open(p.FilePath)
 	if err != nil {
@@ -70,7 +75,7 @@ func (p *CSVCaseParser) Parse() ([]TestCase, error) {
 		}
 
 		step := TestStep{
-			StepId:        record[2],
+			StepID:        record[2],
 			SleepTime:     record[3],
 			Desc:          record[4],
 			ActionType:    record[5],

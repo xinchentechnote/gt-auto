@@ -5,6 +5,7 @@ import (
 	"errors"
 )
 
+// CancelReject represents a cancel reject message.
 type CancelReject struct {
 	ClOrdID      string // 10 bytes
 	OrigClOrdID  string // 10 bytes
@@ -12,10 +13,12 @@ type CancelReject struct {
 	RejectText   string // 40 bytes
 }
 
+// MsgType returns the message type for CancelReject.
 func (m *CancelReject) MsgType() uint32 {
 	return 290008
 }
 
+// Encode the CancelReject message into a byte slice.
 func (m *CancelReject) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.Write(padRight(m.ClOrdID, 10))
@@ -25,6 +28,7 @@ func (m *CancelReject) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decode the CancelReject message from a byte slice.
 func (m *CancelReject) Decode(data []byte) error {
 	if len(data) < 61 {
 		return errors.New("invalid CancelReject packet")

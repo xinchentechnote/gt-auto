@@ -21,15 +21,15 @@ func TestCSVCaseParserParse(t *testing.T) {
 	assert.Equal(t, "order", tc.CaseTitle)
 	assert.Len(t, tc.Steps, 4, "should have 4 steps")
 
-	assert.Equal(t, "new_order_001", tc.Steps[0].StepId)
+	assert.Equal(t, "new_order_001", tc.Steps[0].StepID)
 	assert.Equal(t, "oms1", tc.Steps[0].TestTool)
 	assert.Equal(t, "100101", tc.Steps[0].TestFunction)
 
-	assert.Equal(t, "new_order_002", tc.Steps[1].StepId)
+	assert.Equal(t, "new_order_002", tc.Steps[1].StepID)
 	assert.Equal(t, "tgw1", tc.Steps[1].TestTool)
 	assert.Equal(t, "100101", tc.Steps[1].TestFunction)
 
-	assert.Equal(t, "new_order_003", tc.Steps[2].StepId)
+	assert.Equal(t, "new_order_003", tc.Steps[2].StepID)
 	assert.Equal(t, "tgw1", tc.Steps[2].TestTool)
 	assert.Equal(t, "200102", tc.Steps[2].TestFunction)
 }

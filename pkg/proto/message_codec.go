@@ -19,17 +19,21 @@ func init() {
 	RegisterMessage(290008, func() Message { return &CancelReject{} })
 }
 
-// 全局消息注册器
+// SzseMessageFactory is a factory function that creates a new message instance.
+// It returns a Message interface, which is implemented by all message types.
 type SzseMessageFactory func() Message
 
 var registry = map[uint32]SzseMessageFactory{}
 
+// RegisterMessage registers a message type with its factory function.
 func RegisterMessage(msgType uint32, factory SzseMessageFactory) {
 	registry[msgType] = factory
 }
 
+// SzseMessageCodec is a codec for encoding and decoding messages.
 type SzseMessageCodec struct{}
 
+// Encode a message into a byte slice and prepends the message type and length.
 func (codec *SzseMessageCodec) Encode(message Message) ([]byte, error) {
 	// 将字符串 MsgType 转换为 int32
 	msgType := message.MsgType()
@@ -48,6 +52,7 @@ func (codec *SzseMessageCodec) Encode(message Message) ([]byte, error) {
 	return b, nil
 }
 
+// Decode a byte slice into a message.
 func (codec *SzseMessageCodec) Decode(data []byte) (Message, error) {
 	if len(data) < 8 {
 		return nil, fmt.Errorf("data too short")
