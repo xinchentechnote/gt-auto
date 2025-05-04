@@ -1,0 +1,7 @@
+{
+    "yaml.schemas": {
+      "./.github/workflows/github-workflow.json": "/*.github/workflows/*.yml",
+      "./.github/workflows/pre-commit-config.json": "/.pre-commit-config.yaml"
+    }
+  }
+  
