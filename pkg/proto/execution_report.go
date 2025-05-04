@@ -28,8 +28,12 @@ func (m *ExecutionReport) Encode() ([]byte, error) {
 	buf.Write(padRight(m.ExecID, 12))
 	buf.WriteByte(m.ExecType)
 	buf.WriteByte(m.OrdStatus)
-	binary.Write(buf, binary.BigEndian, m.LastPx)
-	binary.Write(buf, binary.BigEndian, m.LastQty)
+	if err := binary.Write(buf, binary.BigEndian, m.LastPx); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(buf, binary.BigEndian, m.LastQty); err != nil {
+		return nil, err
+	}
 	return buf.Bytes(), nil
 }
 

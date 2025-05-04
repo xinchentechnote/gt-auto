@@ -24,7 +24,9 @@ func (m *Logon) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.Write(padRight(m.SenderCompID, 20))
 	buf.Write(padRight(m.TargetCompID, 20))
-	binary.Write(buf, binary.BigEndian, m.HeartBtInt)
+	if err := binary.Write(buf, binary.BigEndian, m.HeartBtInt); err != nil {
+		return nil, err
+	}
 	buf.Write(padRight(m.Password, 20))
 	buf.WriteByte(m.DefaultApplVerID)
 	return buf.Bytes(), nil

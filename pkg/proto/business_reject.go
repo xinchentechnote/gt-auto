@@ -22,7 +22,9 @@ func (m *BusinessReject) MsgType() uint32 {
 func (m *BusinessReject) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.Write(padRight(m.RefMsgType, 2))
-	binary.Write(buf, binary.BigEndian, m.BusinessRejectReason)
+	if err := binary.Write(buf, binary.BigEndian, m.BusinessRejectReason); err != nil {
+		return nil, err
+	}
 	buf.Write(padRight(m.BusinessRejectText, 40))
 	return buf.Bytes(), nil
 }
