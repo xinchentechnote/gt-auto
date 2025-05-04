@@ -6,12 +6,36 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xinchentechnote/gt-auto/pkg/proto"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 )
 
+type dummyMessage struct {
+	Content string
+}
+
+func (d *dummyMessage) MsgType() uint32 {
+	return 999999
+}
+
+func (d *dummyMessage) Encode() ([]byte, error) {
+	return []byte(d.Content), nil
+}
+
+func (d *dummyMessage) Decode(data []byte) error {
+	d.Content = string(data)
+	return nil
+}
+
+func init() {
+	proto.RegisterMessage(999999, func() proto.Message {
+		return &dummyMessage{}
+	})
+}
+
 func TestOmsTgwIntegration(t *testing.T) {
 	// Start TGW server in a goroutine
-	tgw := &tcp.TgwSimulator{ListenAddress: "localhost:9001"}
+	tgw := &tcp.TgwSimulator[*dummyMessage]{ListenAddress: "localhost:9001", Codec: &proto.SzseMessageCodec{}}
 	go func() {
 		err := tgw.Start()
 		require.NoError(t, err)
@@ -23,18 +47,20 @@ func TestOmsTgwIntegration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Start OMS client
-	oms := &tcp.OmsSimulator{ServerAddress: "localhost:9001"}
+	oms := &tcp.OmsSimulator[*dummyMessage]{ServerAddress: "localhost:9001", Codec: &proto.SzseMessageCodec{}}
 	err := oms.Start()
 	require.NoError(t, err)
 	defer oms.Close()
 
-	// Send a test message
-	testMsg := "LOGIN"
+	//Oms send a test message
+	testMsg := &dummyMessage{
+		Content: "LOGIN",
+	}
 	err = oms.Send(testMsg)
 	require.NoError(t, err)
-
-	// Receive (not implemented to echo yet, so no response expected)
-	resp, err := oms.Receive()
-	assert.Nil(t, err)                        // expect read to fail or be empty
-	assert.Equal(t, "Processed: LOGIN", resp) // or "" as response
+	time.Sleep(1000 * time.Millisecond)
+	//Tgw receive the message
+	resp, err := tgw.Receive()
+	assert.Nil(t, err)
+	assert.Equal(t, "LOGIN", resp.Content)
 }

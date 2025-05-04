@@ -3,6 +3,7 @@ module github.com/xinchentechnote/gt-auto
 go 1.24.2
 
 require (
+	github.com/enriquebris/goconcurrentqueue v0.7.0
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.6
 )
