@@ -3,13 +3,15 @@ package proto
 import (
 	"encoding/binary"
 	"fmt"
-	"strconv"
 )
 
 func init() {
+	//当前实现参考了深圳证券交易所的二进制协议，进行了简化，仅为了演示功能实现
+	//将来将基于antlr4定义dsl描述完整的深交所二进制协议，并生成对应的代码
 	RegisterMessage(1, func() Message { return &Logon{} })
 	RegisterMessage(2, func() Message { return &Logout{} })
 	RegisterMessage(3, func() Message { return &Heartbeat{} })
+	RegisterMessage(4, func() Message { return &BusinessReject{} })
 	RegisterMessage(100101, func() Message { return &NewOrder{} })
 	RegisterMessage(200102, func() Message { return &ExecutionConfirm{} })
 	RegisterMessage(200115, func() Message { return &ExecutionReport{} })
@@ -30,11 +32,7 @@ type SzseMessageCodec struct{}
 
 func (codec *SzseMessageCodec) Encode(message Message) ([]byte, error) {
 	// 将字符串 MsgType 转换为 int32
-	msgTypeStr := message.MsgType()
-	msgTypeInt, err := strconv.Atoi(msgTypeStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid MsgType (not int): %s", msgTypeStr)
-	}
+	msgType := message.MsgType()
 
 	data, err := message.Encode()
 	if err != nil {
@@ -43,7 +41,7 @@ func (codec *SzseMessageCodec) Encode(message Message) ([]byte, error) {
 
 	length := len(data)
 	b := make([]byte, 8+length)
-	binary.BigEndian.PutUint32(b[0:4], uint32(msgTypeInt))
+	binary.BigEndian.PutUint32(b[0:4], uint32(msgType))
 	binary.BigEndian.PutUint32(b[4:8], uint32(length))
 	copy(b[8:], data)
 

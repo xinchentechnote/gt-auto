@@ -10,7 +10,7 @@ type MessageCodec interface {
 }
 
 type Message interface {
-	MsgType() string
+	MsgType() uint32
 	Encode() ([]byte, error)
 	Decode([]byte) error
 }

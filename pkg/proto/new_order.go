@@ -16,8 +16,8 @@ type NewOrder struct {
 	Side       byte   // 1 byte
 }
 
-func (m *NewOrder) MsgType() string {
-	return "100101"
+func (m *NewOrder) MsgType() uint32 {
+	return 100101
 }
 
 func padRight(s string, length int) []byte {

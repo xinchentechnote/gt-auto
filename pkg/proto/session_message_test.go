@@ -1,13 +1,14 @@
-package proto
+package proto_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/xinchentechnote/gt-auto/pkg/proto"
 )
 
-func TestLogonEncodeDecode(t *testing.T) {
-	original := &Logon{
+func TestLogon_EncodeDecode(t *testing.T) {
+	original := &proto.Logon{
 		SenderCompID:     "SENDER123",
 		TargetCompID:     "TARGET456",
 		HeartBtInt:       30,
@@ -18,7 +19,7 @@ func TestLogonEncodeDecode(t *testing.T) {
 	data, err := original.Encode()
 	assert.NoError(t, err)
 
-	var decoded Logon
+	var decoded proto.Logon
 	err = decoded.Decode(data)
 	assert.NoError(t, err)
 
@@ -29,8 +30,8 @@ func TestLogonEncodeDecode(t *testing.T) {
 	assert.Equal(t, original.DefaultApplVerID, decoded.DefaultApplVerID)
 }
 
-func TestLogoutEncodeDecode(t *testing.T) {
-	original := &Logout{
+func TestLogout_EncodeDecode(t *testing.T) {
+	original := &proto.Logout{
 		SessionStatus: 5,
 		Text:          "Session expired due to timeout",
 	}
@@ -38,7 +39,7 @@ func TestLogoutEncodeDecode(t *testing.T) {
 	data, err := original.Encode()
 	assert.NoError(t, err)
 
-	var decoded Logout
+	var decoded proto.Logout
 	err = decoded.Decode(data)
 	assert.NoError(t, err)
 
@@ -46,15 +47,15 @@ func TestLogoutEncodeDecode(t *testing.T) {
 	assert.Equal(t, original.Text, decoded.Text)
 }
 
-func TestLogoutDecodeInvalid(t *testing.T) {
+func TestLogout_DecodeInvalid(t *testing.T) {
 	shortData := []byte{1} // invalid, too short
-	var msg Logout
+	var msg proto.Logout
 	err := msg.Decode(shortData)
-	assert.ErrorIs(t, err, ErrInvalidPacket)
+	assert.ErrorIs(t, err, proto.ErrInvalidPacket)
 }
 
-func TestHeartbeatEncodeDecode(t *testing.T) {
-	original := &Heartbeat{}
+func TestHeartbeat_EncodeDecode(t *testing.T) {
+	original := &proto.Heartbeat{}
 
 	data, err := original.Encode()
 	assert.NoError(t, err)

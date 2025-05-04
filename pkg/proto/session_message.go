@@ -13,8 +13,8 @@ type Logon struct {
 	DefaultApplVerID byte   // 1 byte
 }
 
-func (m *Logon) MsgType() string {
-	return "1"
+func (m *Logon) MsgType() uint32 {
+	return 1
 }
 
 func (m *Logon) Encode() ([]byte, error) {
@@ -62,8 +62,8 @@ type Logout struct {
 	Text          string // 固定 100 bytes
 }
 
-func (m *Logout) MsgType() string {
-	return "2"
+func (m *Logout) MsgType() uint32 {
+	return 2
 }
 
 func (m *Logout) Encode() ([]byte, error) {
@@ -84,8 +84,8 @@ func (m *Logout) Decode(data []byte) error {
 
 type Heartbeat struct{}
 
-func (m *Heartbeat) MsgType() string {
-	return "3"
+func (m *Heartbeat) MsgType() uint32 {
+	return 3
 }
 
 func (m *Heartbeat) Encode() ([]byte, error) {

@@ -11,8 +11,8 @@ type dummyMessage struct {
 	Content string
 }
 
-func (d *dummyMessage) MsgType() string {
-	return "999999"
+func (d *dummyMessage) MsgType() uint32 {
+	return 999999
 }
 
 func (d *dummyMessage) Encode() ([]byte, error) {

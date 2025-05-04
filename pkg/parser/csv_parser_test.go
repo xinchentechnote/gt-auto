@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCSVCaseParser_Parse(t *testing.T) {
+func TestCSVCaseParserParse(t *testing.T) {
 	filePath := filepath.Join("testdata", "test_case.csv")
 
 	parser := &CSVCaseParser{FilePath: filePath}

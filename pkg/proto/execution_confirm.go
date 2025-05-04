@@ -1,25 +1,54 @@
 package proto
 
+import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+)
+
 type ExecutionConfirm struct {
-	OrderID      string //交易所订单编号
-	ClOrdID      string //客户订单编号
-	OrigClOrdID  string //原始订单客户订单编号
-	ExecID       string //执行编号
-	ExecType     string //执行类型
-	OrdStatus    string //订单状态
-	OrdRejReason string //撤单/拒绝原因代码
+	OrderID      string // 12 bytes
+	ClOrdID      string // 10 bytes
+	OrigClOrdID  string // 10 bytes
+	ExecID       string // 12 bytes
+	ExecType     byte   // 1 byte
+	OrdStatus    byte   // 1 byte
+	OrdRejReason int32  // 4 bytes
 }
 
-func (m *ExecutionConfirm) MsgType() string {
-	return "200102"
+func (m *ExecutionConfirm) MsgType() uint32 {
+	return 200102
 }
 
 func (m *ExecutionConfirm) Encode() ([]byte, error) {
-	// TODO
-	return []byte{}, nil
+	buf := new(bytes.Buffer)
+	buf.Write(padRight(m.OrderID, 12))
+	buf.Write(padRight(m.ClOrdID, 10))
+	buf.Write(padRight(m.OrigClOrdID, 10))
+	buf.Write(padRight(m.ExecID, 12))
+
+	buf.WriteByte(m.ExecType)
+	buf.WriteByte(m.OrdStatus)
+
+	if err := binary.Write(buf, binary.BigEndian, m.OrdRejReason); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (m *ExecutionConfirm) Decode(data []byte) error {
-	// TODO
+	if len(data) < 50 {
+		return errors.New("invalid ExecutionConfirm packet length")
+	}
+
+	m.OrderID = string(bytes.TrimRight(data[0:12], "\x00"))
+	m.ClOrdID = string(bytes.TrimRight(data[12:22], "\x00"))
+	m.OrigClOrdID = string(bytes.TrimRight(data[22:32], "\x00"))
+	m.ExecID = string(bytes.TrimRight(data[32:44], "\x00"))
+	m.ExecType = data[44]
+	m.OrdStatus = data[45]
+	m.OrdRejReason = int32(binary.BigEndian.Uint32(data[46:50]))
+
 	return nil
 }
