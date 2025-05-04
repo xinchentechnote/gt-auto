@@ -5,18 +5,21 @@ import (
 	"encoding/binary"
 )
 
+// Logon represents a logon message.
 type Logon struct {
-	SenderCompID     string // 固定 20 bytes
-	TargetCompID     string // 固定 20 bytes
+	SenderCompID     string // fixed 20 bytes
+	TargetCompID     string // fixed 20 bytes
 	HeartBtInt       int32  // 4 bytes
-	Password         string // 固定 20 bytes
+	Password         string // fixed 20 bytes
 	DefaultApplVerID byte   // 1 byte
 }
 
+// MsgType returns the message type for Logon.
 func (m *Logon) MsgType() uint32 {
 	return 1
 }
 
+// Encode the Logon message into a byte slice.
 func (m *Logon) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.Write(padRight(m.SenderCompID, 20))
@@ -27,6 +30,7 @@ func (m *Logon) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decode the Logon message from a byte slice.
 func (m *Logon) Decode(data []byte) error {
 	buf := bytes.NewReader(data)
 	sender := make([]byte, 20)
@@ -57,15 +61,18 @@ func (m *Logon) Decode(data []byte) error {
 	return nil
 }
 
+// Logout represents a logout message.
 type Logout struct {
 	SessionStatus byte   // 1 byte
 	Text          string // 固定 100 bytes
 }
 
+// MsgType returns the message type for Logout.
 func (m *Logout) MsgType() uint32 {
 	return 2
 }
 
+// Encode the Logout message into a byte slice.
 func (m *Logout) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.WriteByte(m.SessionStatus)
@@ -73,6 +80,7 @@ func (m *Logout) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decode the Logout message from a byte slice.
 func (m *Logout) Decode(data []byte) error {
 	if len(data) < 101 {
 		return ErrInvalidPacket
@@ -82,16 +90,20 @@ func (m *Logout) Decode(data []byte) error {
 	return nil
 }
 
+// Heartbeat represents a heartbeat message.
 type Heartbeat struct{}
 
+// MsgType returns the message type for Heartbeat.
 func (m *Heartbeat) MsgType() uint32 {
 	return 3
 }
 
+// Encode the Heartbeat message into a byte slice.
 func (m *Heartbeat) Encode() ([]byte, error) {
 	return []byte{}, nil
 }
 
+// Decode the Heartbeat message from a byte slice.
 func (m *Heartbeat) Decode(data []byte) error {
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 )
 
+// CancelRequest represents a cancel request message.
 type CancelRequest struct {
 	ClOrdID     string // 10 bytes
 	OrigClOrdID string // 10 bytes
@@ -12,10 +13,12 @@ type CancelRequest struct {
 	Side        byte
 }
 
+// MsgType returns the message type for CancelRequest.
 func (m *CancelRequest) MsgType() uint32 {
 	return 190007
 }
 
+// Encode the CancelRequest message into a byte slice.
 func (m *CancelRequest) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.Write(padRight(m.ClOrdID, 10))
@@ -25,6 +28,7 @@ func (m *CancelRequest) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decode the CancelRequest message from a byte slice.
 func (m *CancelRequest) Decode(data []byte) error {
 	if len(data) < 29 {
 		return errors.New("invalid OrderCancelRequest packet")

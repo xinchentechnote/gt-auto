@@ -6,6 +6,7 @@ import (
 	"errors"
 )
 
+// ExecutionReport represents an execution report message.
 type ExecutionReport struct {
 	ClOrdID   string // 10 bytes
 	ExecID    string // 12 bytes
@@ -15,10 +16,12 @@ type ExecutionReport struct {
 	LastQty   int32 // 4 bytes
 }
 
+// MsgType returns the message type for ExecutionReport.
 func (m *ExecutionReport) MsgType() uint32 {
 	return 200115
 }
 
+// Encode the ExecutionReport message into a byte slice.
 func (m *ExecutionReport) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.Write(padRight(m.ClOrdID, 10))
@@ -30,6 +33,7 @@ func (m *ExecutionReport) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decode the ExecutionReport message from a byte slice.
 func (m *ExecutionReport) Decode(data []byte) error {
 	if len(data) < 36 {
 		return errors.New("invalid ExecutionReport packet")

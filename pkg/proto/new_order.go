@@ -6,6 +6,7 @@ import (
 	"errors"
 )
 
+// NewOrder represents a new order message.
 type NewOrder struct {
 	ClOrdID    string // fixed 10 bytes
 	Price      int64  // 8 bytes
@@ -16,16 +17,19 @@ type NewOrder struct {
 	Side       byte   // 1 byte
 }
 
+// MsgType returns the message type for NewOrder.
 func (m *NewOrder) MsgType() uint32 {
 	return 100101
 }
 
+// padRight pads the string to the specified length with null bytes.
 func padRight(s string, length int) []byte {
 	b := make([]byte, length)
 	copy(b, []byte(s))
 	return b
 }
 
+// Encode the NewOrder message into a byte slice.
 func (m *NewOrder) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -55,6 +59,7 @@ func (m *NewOrder) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decode the NewOrder message from the given byte slice.
 func (m *NewOrder) Decode(data []byte) error {
 	if len(data) < 46 { // 10 + 8 + 4 + 12 + 8 + 3 + 1
 		return errors.New("invalid NewOrder packet length")

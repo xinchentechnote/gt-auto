@@ -6,6 +6,7 @@ import (
 	"errors"
 )
 
+// ExecutionConfirm represents an execution confirmation message.
 type ExecutionConfirm struct {
 	OrderID      string // 12 bytes
 	ClOrdID      string // 10 bytes
@@ -16,10 +17,12 @@ type ExecutionConfirm struct {
 	OrdRejReason int32  // 4 bytes
 }
 
+// MsgType returns the message type for ExecutionConfirm.
 func (m *ExecutionConfirm) MsgType() uint32 {
 	return 200102
 }
 
+// Encode the ExecutionConfirm message into a byte slice.
 func (m *ExecutionConfirm) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.Write(padRight(m.OrderID, 12))
@@ -37,6 +40,7 @@ func (m *ExecutionConfirm) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decode the ExecutionConfirm message from a byte slice.
 func (m *ExecutionConfirm) Decode(data []byte) error {
 	if len(data) < 50 {
 		return errors.New("invalid ExecutionConfirm packet length")
