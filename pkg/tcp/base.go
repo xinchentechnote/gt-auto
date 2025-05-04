@@ -1,47 +1,66 @@
 package tcp
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
 	"net"
+
+	"github.com/enriquebris/goconcurrentqueue"
+	"github.com/xinchentechnote/gt-auto/pkg/proto"
 )
 
 // Simulator interface defines the methods for both OMS and TGW simulators
-type Simulator interface {
+type Simulator[T proto.Message] interface {
 	Start() error
-	Send(message string) error
-	Receive() (string, error)
+	Send(message T) error
+	Receive() (T, error)
 	Close() error
 }
 
 // OmsSimulator simulates the OMS client
-type OmsSimulator struct {
+type OmsSimulator[T proto.Message] struct {
 	ServerAddress string
 	conn          net.Conn
+	queue         *goconcurrentqueue.FIFO
+	Codec         proto.MessageCodec
 }
 
 // TgwSimulator simulates the TGW server
-type TgwSimulator struct {
+type TgwSimulator[T proto.Message] struct {
 	ListenAddress string
 	listener      net.Listener
 	stopChan      chan struct{}
+	queue         *goconcurrentqueue.FIFO
+	Codec         proto.MessageCodec
+	conn          net.Conn
 }
 
 // Start connects to the TGWServer
-func (c *OmsSimulator) Start() error {
+func (sim *OmsSimulator[T]) Start() error {
+	sim.queue = goconcurrentqueue.NewFIFO()
 	var err error
-	c.conn, err = net.Dial("tcp", c.ServerAddress)
+	sim.conn, err = net.Dial("tcp", sim.ServerAddress)
 	if err != nil {
 		return fmt.Errorf("failed to connect to server: %w", err)
 	}
-	log.Printf("Connected to TGW server at %s", c.ServerAddress)
+	log.Printf("Connected to TGW server at %s", sim.ServerAddress)
+	go func() {
+		if err := sim.receive0(); err != nil {
+			log.Printf("receive0 error: %v", err)
+		}
+	}()
 	return nil
 }
 
 // Send sends a message to the server
-func (c *OmsSimulator) Send(message string) error {
-	_, err := c.conn.Write([]byte(message))
+func (sim *OmsSimulator[T]) Send(message T) error {
+	data, e := sim.Codec.Encode(message)
+	if e != nil {
+		return fmt.Errorf("failed to encode message: %w", e)
+	}
+	_, err := sim.conn.Write(data)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
 	}
@@ -49,40 +68,66 @@ func (c *OmsSimulator) Send(message string) error {
 }
 
 // Receive waits for a response from the server
-func (c *OmsSimulator) Receive() (string, error) {
-	buf := make([]byte, 1024)
-	n, err := c.conn.Read(buf)
+func (sim *OmsSimulator[T]) Receive() (T, error) {
+	msg, err := sim.queue.Dequeue()
 	if err != nil {
-		return "", fmt.Errorf("failed to receive message: %w", err)
+		var zero T
+		return zero, fmt.Errorf("error dequeuing message: %w", err)
 	}
-	return string(buf[:n]), nil
+	return msg.(T), nil
+}
+
+// Receive waits for a response from the server
+func (sim *OmsSimulator[T]) receive0() error {
+	head := make([]byte, 8)
+	_, err := io.ReadFull(sim.conn, head)
+	if err != nil {
+		return fmt.Errorf("failed to receive message: %w", err)
+	}
+	bodyLen := binary.BigEndian.Uint32(head[4:8])
+	body := make([]byte, bodyLen)
+	_, er := io.ReadFull(sim.conn, body)
+	if er != nil {
+		return fmt.Errorf("failed to receive message: %w", err)
+	}
+	msg, e := sim.Codec.Decode(append(head, body...))
+	if e != nil {
+		return fmt.Errorf("failed to decode message: %w", err)
+	}
+	e1 := sim.queue.Enqueue(msg)
+	if e1 != nil {
+		return fmt.Errorf("failed to enqueue message: %w", e1)
+	}
+
+	return nil
 }
 
 // Close closes the OMSClient connection
-func (c *OmsSimulator) Close() error {
-	return c.conn.Close()
+func (sim *OmsSimulator[T]) Close() error {
+	return sim.conn.Close()
 }
 
 // Start listens for incoming connections on the TGWServer
-func (s *TgwSimulator) Start() error {
+func (sim *TgwSimulator[T]) Start() error {
 	var err error
-	s.listener, err = net.Listen("tcp", s.ListenAddress)
+	sim.listener, err = net.Listen("tcp", sim.ListenAddress)
 	if err != nil {
 		return fmt.Errorf("error starting server: %w", err)
 	}
-	log.Printf("TGW server started on %s", s.ListenAddress)
-	s.stopChan = make(chan struct{})
-
+	log.Printf("TGW server started on %s", sim.ListenAddress)
+	sim.stopChan = make(chan struct{})
+	sim.queue = goconcurrentqueue.NewFIFO()
 	go func() {
-		<-s.stopChan
-		s.listener.Close()
+		<-sim.stopChan
+		sim.listener.Close()
 	}()
 
 	for {
-		conn, err := s.listener.Accept()
+		conn, err := sim.listener.Accept()
+		sim.conn = conn
 		if err != nil {
 			select {
-			case <-s.stopChan:
+			case <-sim.stopChan:
 				log.Println("TGW server shutting down.")
 				return nil
 			default:
@@ -90,49 +135,76 @@ func (s *TgwSimulator) Start() error {
 				continue
 			}
 		}
-		go s.handleClient(conn)
+		go sim.handleClient(conn)
 	}
 }
 
 // Handle incoming client connections and put messages in the queue
-func (s *TgwSimulator) handleClient(conn net.Conn) {
+func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 	defer conn.Close()
 
-	buf := make([]byte, 1024)
+	header := make([]byte, 8) // 4 bytes msgType + 4 bytes bodyLen
 	for {
-		n, err := conn.Read(buf)
+		// Read the header
+		_, err := io.ReadFull(conn, header)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("Error reading from connection: %v", err)
+				log.Printf("Error reading header: %v", err)
 			}
 			break
 		}
-		msg := string(buf[:n])
-		fmt.Println("Received message:", msg)
 
-		resp := s.ProcessMessage(msg)
+		// Parse bodyLen
+		bodyLen := binary.BigEndian.Uint32(header[4:8])
 
-		_, err1 := conn.Write([]byte(resp))
-		if err1 != nil {
-			log.Printf("Error writing to connection: %v", err)
+		// Read the body
+		body := make([]byte, bodyLen)
+		_, err = io.ReadFull(conn, body)
+		if err != nil {
+			log.Printf("Error reading body: %v", err)
 			break
+		}
+
+		// Decode the message
+		msg, e := sim.Codec.Decode(append(header, body...))
+		if e != nil {
+			log.Printf("Error decoding message: %v", e)
+			continue
+		}
+
+		e1 := sim.queue.Enqueue(msg)
+		if e1 != nil {
+			log.Printf("Error enqueuing message: %v", e1)
+			continue
 		}
 	}
 }
 
-// Receive reads the next message from the queue
-func (s *TgwSimulator) Receive() (string, error) {
-	return "", nil
+// Send sends a message to the client
+func (sim *TgwSimulator[T]) Send(message T) error {
+	data, e := sim.Codec.Encode(message)
+	if e != nil {
+		return fmt.Errorf("failed to encode message: %w", e)
+	}
+	_, err := sim.conn.Write(data)
+	if err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+	return nil
 }
 
-// ProcessMessage processes the received message (for example, a simple echo)
-func (s *TgwSimulator) ProcessMessage(message string) string {
-	// Here we can add more complex processing, but we'll just echo the message for now
-	return "Processed: " + message
+// Receive reads the next message from the queue
+func (sim *TgwSimulator[T]) Receive() (T, error) {
+	msg, err := sim.queue.Dequeue()
+	if err != nil {
+		var zero T
+		return zero, fmt.Errorf("error dequeuing message: %w", err)
+	}
+	return msg.(T), nil
 }
 
 // Close shuts down the TGWServer
-func (s *TgwSimulator) Close() error {
-	close(s.stopChan)
+func (sim *TgwSimulator[T]) Close() error {
+	close(sim.stopChan)
 	return nil
 }
