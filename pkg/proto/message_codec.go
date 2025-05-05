@@ -30,11 +30,12 @@ func RegisterMessage(msgType uint32, factory SzseMessageFactory) {
 	registry[msgType] = factory
 }
 
-// SzseMessageCodec is a codec for encoding and decoding messages.
-type SzseMessageCodec struct{}
+// BinarySzseMessageCodec is a codec for encoding and decoding messages.
+// It implements the MessageCodec interface for the SZSE binary protocol.
+type BinarySzseMessageCodec struct{}
 
 // Encode a message into a byte slice and prepends the message type and length.
-func (codec *SzseMessageCodec) Encode(message Message) ([]byte, error) {
+func (codec *BinarySzseMessageCodec) Encode(message Message) ([]byte, error) {
 	// 将字符串 MsgType 转换为 int32
 	msgType := message.MsgType()
 
@@ -53,7 +54,7 @@ func (codec *SzseMessageCodec) Encode(message Message) ([]byte, error) {
 }
 
 // Decode a byte slice into a message.
-func (codec *SzseMessageCodec) Decode(data []byte) (Message, error) {
+func (codec *BinarySzseMessageCodec) Decode(data []byte) (Message, error) {
 	if len(data) < 8 {
 		return nil, fmt.Errorf("data too short")
 	}
@@ -77,4 +78,46 @@ func (codec *SzseMessageCodec) Decode(data []byte) (Message, error) {
 	}
 
 	return msg, nil
+}
+
+// BinarySseMessageCodec is a codec for encoding and decoding messages.
+// It is a placeholder and should be implemented according to the SSE binary protocol.
+type BinarySseMessageCodec struct{}
+
+// Decode implements MessageCodec.
+func (b *BinarySseMessageCodec) Decode([]byte) (Message, error) {
+	panic("unimplemented")
+}
+
+// Encode implements MessageCodec.
+func (b *BinarySseMessageCodec) Encode(Message) ([]byte, error) {
+	panic("unimplemented")
+}
+
+// StepSzseMessageCodec is a codec for encoding and decoding messages.
+// It is a placeholder and should be implemented according to the SZSE step protocol.
+type StepSzseMessageCodec struct{}
+
+// Decode implements MessageCodec.
+func (s *StepSzseMessageCodec) Decode([]byte) (Message, error) {
+	panic("unimplemented")
+}
+
+// Encode implements MessageCodec.
+func (s *StepSzseMessageCodec) Encode(Message) ([]byte, error) {
+	panic("unimplemented")
+}
+
+// StepSseMessageCodec is a codec for encoding and decoding messages.
+// It is a placeholder and should be implemented according to the SSE step protocol.
+type StepSseMessageCodec struct{}
+
+// Decode implements MessageCodec.
+func (s *StepSseMessageCodec) Decode([]byte) (Message, error) {
+	panic("unimplemented")
+}
+
+// Encode implements MessageCodec.
+func (s *StepSseMessageCodec) Encode(Message) ([]byte, error) {
+	panic("unimplemented")
 }

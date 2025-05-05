@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xinchentechnote/gt-auto/pkg/config"
 	"github.com/xinchentechnote/gt-auto/pkg/proto"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 )
@@ -34,8 +35,11 @@ func init() {
 }
 
 func TestOmsTgwIntegration(t *testing.T) {
+	config, err := config.ParseConfig("../config/testdata/gw-auto.toml")
+	require.NoError(t, err)
 	// Start TGW server in a goroutine
-	tgw := &tcp.TgwSimulator[*dummyMessage]{ListenAddress: "localhost:9001", Codec: &proto.SzseMessageCodec{}}
+	tgw, err := tcp.CreateSimulator[proto.Message](config.Simulators[1])
+	require.NoError(t, err)
 	go func() {
 		err := tgw.Start()
 		require.NoError(t, err)
@@ -47,8 +51,9 @@ func TestOmsTgwIntegration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Start OMS client
-	oms := &tcp.OmsSimulator[*dummyMessage]{ServerAddress: "localhost:9001", Codec: &proto.SzseMessageCodec{}}
-	err := oms.Start()
+	oms, err := tcp.CreateSimulator[proto.Message](config.Simulators[0])
+	require.NoError(t, err)
+	err = oms.Start()
 	require.NoError(t, err)
 	defer oms.Close()
 
@@ -62,5 +67,5 @@ func TestOmsTgwIntegration(t *testing.T) {
 	//Tgw receive the message
 	resp, err := tgw.Receive()
 	assert.Nil(t, err)
-	assert.Equal(t, "LOGIN", resp.Content)
+	assert.Equal(t, "LOGIN", resp.(*dummyMessage).Content)
 }

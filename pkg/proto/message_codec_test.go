@@ -31,7 +31,7 @@ func init() {
 }
 
 func TestSzseMessageCodec_EncodeDecode(t *testing.T) {
-	codec := &proto.SzseMessageCodec{}
+	codec := &proto.BinarySzseMessageCodec{}
 
 	original := &dummyMessage{
 		Content: "test-tlv-payload",
