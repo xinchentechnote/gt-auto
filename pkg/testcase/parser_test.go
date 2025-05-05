@@ -1,4 +1,4 @@
-package parser
+package testcase
 
 import (
 	"path/filepath"
