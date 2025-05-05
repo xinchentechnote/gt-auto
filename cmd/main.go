@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v2"
-	"github.com/xinchentechnote/gt-auto/pkg/parser"
+	"github.com/xinchentechnote/gt-auto/pkg/testcase"
 )
 
 func main() {
@@ -21,10 +21,10 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
+			// 1.Parse test cases from the provided file
 			casePath := c.String("casePath")
 			fmt.Printf("Running test from: %s\n", casePath)
-			parserImpl := &parser.CSVCaseParser{FilePath: casePath}
-			cases, err := parserImpl.Parse()
+			cases, err := testcase.LoadTestCases(casePath)
 			if err != nil {
 				panic(err)
 			}
@@ -36,6 +36,11 @@ func main() {
 						s.StepID, s.ActionType, s.TestTool, s.TestDataSheet)
 				}
 			}
+			// 2. Create a simulators based on the configuration
+			// 3. Execute the test cases
+			// 4. Collect the results,validate and generate a report
+			// 5. Save the report to a file
+			// 6. Print the report to the console
 			return nil
 		},
 	}
