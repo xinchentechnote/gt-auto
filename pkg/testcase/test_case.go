@@ -1,5 +1,7 @@
 package testcase
 
+import "github.com/xinchentechnote/gt-auto/pkg/validate"
+
 // TestStep represents a single step in a test case.
 type TestStep struct {
 	StepID        string
@@ -9,6 +11,18 @@ type TestStep struct {
 	TestTool      string
 	TestFunction  string
 	TestDataSheet string
+	TestData      map[string]any
+	actual        any
+}
+
+// SetActual set recieve actual data
+func (t *TestStep) SetActual(actual interface{}) {
+	t.actual = actual
+}
+
+// Validate expect and actual
+func (t *TestStep) Validate() (validate.CompareResult, error) {
+	return validate.CompareJSON(t.TestData, t.actual)
 }
 
 // TestCase represents a test case with its steps.

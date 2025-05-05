@@ -2,14 +2,17 @@ package testcase
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 // CSVCaseParser implements the CaseParser interface for CSV files.
 type CSVCaseParser struct {
-	FilePath string
+	FilePath      string
+	testDataCache map[string]map[string]interface{}
 }
 
 // Parse parses CSV data and returns test cases.
@@ -60,8 +63,34 @@ func (p *CSVCaseParser) Parse() ([]TestCase, error) {
 			TestFunction:  record[7],
 			TestDataSheet: record[8],
 		}
+		data, err := p.findTestData(step.TestDataSheet, step.StepID)
+		if err != nil {
+			fmt.Printf("Error finding test data for %s step %s: %v\n", step.TestDataSheet, step.StepID, err)
+			continue
+		}
+		step.TestData = data
 		currentCase.Steps = append(currentCase.Steps, step)
 		cases[len(cases)-1] = *currentCase
 	}
 	return cases, nil
+}
+
+func (p *CSVCaseParser) findTestData(sheetName, stepID string) (map[string]interface{}, error) {
+	if p.testDataCache == nil {
+		p.testDataCache = make(map[string]map[string]interface{})
+	}
+	if data, ok := p.testDataCache[stepID]; ok {
+		return data, nil
+	}
+	dir := filepath.Dir(p.FilePath)
+	ext := filepath.Ext(p.FilePath)
+	data, err := LoadCSVToMap(filepath.Join(dir, sheetName+ext))
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range data {
+		p.testDataCache[k] = v
+	}
+
+	return p.testDataCache[stepID], nil
 }

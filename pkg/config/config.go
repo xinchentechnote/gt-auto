@@ -11,7 +11,18 @@ import (
 // GwAutoConfig represents the configuration
 type GwAutoConfig struct {
 	// Simulators is a list of simulator configurations
-	Simulators []SimulatorConfig `toml:"simulators"`
+	Simulators   []SimulatorConfig `toml:"simulators"`
+	SimulatorMap map[string]SimulatorConfig
+}
+
+// InitConfigMap convert slice to map
+func (c *GwAutoConfig) InitConfigMap() {
+	c.SimulatorMap = make(map[string]SimulatorConfig)
+	if c.Simulators != nil {
+		for _, s := range c.Simulators {
+			c.SimulatorMap[s.Name] = s
+		}
+	}
 }
 
 // SimulatorConfig represents the configuration for a simulator

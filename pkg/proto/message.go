@@ -7,6 +7,8 @@ var ErrInvalidPacket = errors.New("invalid packet")
 
 // MessageCodec is an interface for encoding and decoding messages.
 type MessageCodec interface {
+	// EncodeJSONMap encodes a map into a byte slice.
+	EncodeJSONMap(map[string]interface{}) ([]byte, error)
 	// Encode encodes a Message into a byte slice.
 	// It returns the encoded byte slice and an error if any.
 	Encode(Message) ([]byte, error)

@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v2"
+	"github.com/xinchentechnote/gt-auto/pkg/config"
+	"github.com/xinchentechnote/gt-auto/pkg/executor"
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"
 )
 
@@ -18,6 +20,10 @@ func main() {
 				Name:     "casePath",
 				Usage:    "Path to the test case file path",
 				Required: true,
+			}, &cli.StringFlag{
+				Name:     "config",
+				Usage:    "Path to the configuration file",
+				Required: true,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -28,17 +34,18 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-
-			for _, c := range cases {
-				fmt.Printf("CaseNo: %s | Title: %s\n", c.CaseNo, c.CaseTitle)
-				for _, s := range c.Steps {
-					fmt.Printf("  Step: %-20s | Action: %-6s | Tool: %-25s | Data: %s\n",
-						s.StepID, s.ActionType, s.TestTool, s.TestDataSheet)
-				}
-			}
+			configPath := c.String("config")
+			fmt.Printf("Using config from: %s\n", configPath)
 			// 2. Create a simulators based on the configuration
+			gwAutoConfig, err := config.ParseConfig(configPath)
+			if err != nil {
+				panic(err)
+			}
+			gwAutoConfig.InitConfigMap()
 			// 3. Execute the test cases
+			executor := executor.NewCaseExecutor(*gwAutoConfig, cases)
 			// 4. Collect the results,validate and generate a report
+			executor.Execute()
 			// 5. Save the report to a file
 			// 6. Print the report to the console
 			return nil

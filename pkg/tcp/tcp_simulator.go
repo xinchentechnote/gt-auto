@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 
 	"github.com/enriquebris/goconcurrentqueue"
 	"github.com/xinchentechnote/gt-auto/pkg/proto"
@@ -15,6 +16,8 @@ import (
 type Simulator[T proto.Message] interface {
 	Start() error
 	Send(message T) error
+	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
+	SendFromJSON(message map[string]interface{}) error
 	Receive() (T, error)
 	Close() error
 }
@@ -41,9 +44,11 @@ type TgwSimulator[T proto.Message] struct {
 func (sim *OmsSimulator[T]) Start() error {
 	sim.queue = goconcurrentqueue.NewFIFO()
 	var err error
-	sim.conn, err = net.Dial("tcp", sim.ServerAddress)
+	sim.conn, err = net.DialTimeout("tcp", sim.ServerAddress, 5*time.Second)
 	if err != nil {
+		log.Printf("failed to connect to server: %s", err)
 		return fmt.Errorf("failed to connect to server: %w", err)
+
 	}
 	log.Printf("Connected to TGW server at %s", sim.ServerAddress)
 	go func() {
@@ -60,11 +65,23 @@ func (sim *OmsSimulator[T]) Send(message T) error {
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}
-	_, err := sim.conn.Write(data)
+	return sim.sendByte(data)
+}
+
+func (sim *OmsSimulator[T]) sendByte(message []byte) error {
+	_, err := sim.conn.Write(message)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
 	}
 	return nil
+}
+
+func (sim *OmsSimulator[T]) SendFromJSON(message map[string]interface{}) error {
+	data, e := sim.Codec.EncodeJSONMap(message)
+	if e != nil {
+		return fmt.Errorf("failed to encode message: %w", e)
+	}
+	return sim.sendByte(data)
 }
 
 // Receive waits for a response from the server
@@ -186,11 +203,23 @@ func (sim *TgwSimulator[T]) Send(message T) error {
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}
-	_, err := sim.conn.Write(data)
+	return sim.sendByte(data)
+}
+
+func (sim *TgwSimulator[T]) sendByte(message []byte) error {
+	_, err := sim.conn.Write(message)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
 	}
 	return nil
+}
+
+func (sim *TgwSimulator[T]) SendFromJSON(message map[string]interface{}) error {
+	data, e := sim.Codec.EncodeJSONMap(message)
+	if e != nil {
+		return fmt.Errorf("failed to encode message: %w", e)
+	}
+	return sim.sendByte(data)
 }
 
 // Receive reads the next message from the queue
