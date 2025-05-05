@@ -3,7 +3,10 @@ package validate
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 // Diff represents a difference between two structs.
@@ -153,5 +156,26 @@ func compareJSON(path string, expect, actual interface{}, diffs *[]Diff) {
 		if expect != actual {
 			*diffs = append(*diffs, Diff{Path: path, Expect: expect, Actual: actual})
 		}
+	}
+}
+
+// PrintCompareResult prints the comparison result in a table format.
+func PrintCompareResult(result CompareResult) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Path", "Expected", "Actual"})
+
+	for _, diff := range result.Diffs {
+		table.Append([]string{
+			diff.Path,
+			fmt.Sprintf("%v", diff.Expect),
+			fmt.Sprintf("%v", diff.Actual),
+		})
+	}
+
+	if result.Equal {
+		fmt.Println("✅ Pass.")
+	} else {
+		fmt.Println("❌ Diff:")
+		table.Render()
 	}
 }

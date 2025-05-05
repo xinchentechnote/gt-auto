@@ -47,16 +47,9 @@ func TestCompareStruct(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CompareStruct(tt.expect, tt.actual)
-			if result.Equal != tt.equal {
-				t.Errorf("Expected equal=%v, got %v", tt.equal, result.Equal)
-			}
-			if len(result.Diffs) != tt.diffLen {
-				t.Errorf("Expected %d diffs, got %d", tt.diffLen, len(result.Diffs))
-			}
-			// Log the diffs if there are any
-			for _, diff := range result.Diffs {
-				t.Logf("Path: %s, Expected: %v, Actual: %v", diff.Path, diff.Expect, diff.Actual)
-			}
+			assert.Equal(t, tt.equal, result.Equal)
+			assert.Len(t, result.Diffs, tt.diffLen)
+			PrintCompareResult(result)
 		})
 	}
 }
@@ -115,6 +108,7 @@ func TestCompareJSON(t *testing.T) {
 			result, _ := CompareJSON(tt.expect, tt.actual)
 			assert.Equal(t, tt.equal, result.Equal)
 			assert.Len(t, result.Diffs, tt.diffLen)
+			PrintCompareResult(result)
 		})
 	}
 }
