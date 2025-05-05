@@ -38,7 +38,7 @@ func TestOmsTgwIntegration(t *testing.T) {
 	config, err := config.ParseConfig("../config/testdata/gw-auto.toml")
 	require.NoError(t, err)
 	// Start TGW server in a goroutine
-	tgw, err := tcp.CreateSimulator[proto.Message](config.Simulators[1])
+	tgw, err := tcp.CreateSimulator[proto.Message](config.Simulators[0])
 	require.NoError(t, err)
 	go func() {
 		err := tgw.Start()
@@ -51,7 +51,7 @@ func TestOmsTgwIntegration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Start OMS client
-	oms, err := tcp.CreateSimulator[proto.Message](config.Simulators[0])
+	oms, err := tcp.CreateSimulator[proto.Message](config.Simulators[1])
 	require.NoError(t, err)
 	err = oms.Start()
 	require.NoError(t, err)
