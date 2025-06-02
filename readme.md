@@ -44,3 +44,4 @@ graph LR
 - [ ] **Protobuf** – Google Protocol Buffers used for efficient service-to-service communication.
 - [ ] **Custom** – User-defined protocol (binary or text-based), tailored for specific business needs.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xinchentechnote/gt-auto)
