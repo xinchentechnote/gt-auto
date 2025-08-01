@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"github.com/xinchentechnote/gt-auto/pkg/config"
 	"github.com/xinchentechnote/gt-auto/pkg/executor"
@@ -12,6 +12,8 @@ import (
 )
 
 func main() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetLevel(log.InfoLevel)
 	app := &cli.App{
 		Name:  "gw-auto",
 		Usage: "CLI tool for gateway automation testing",
@@ -54,7 +56,7 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/xinchentechnote/gt-auto/pkg/config"
 	"github.com/xinchentechnote/gt-auto/pkg/proto"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
@@ -87,6 +88,7 @@ func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
 	switch step.ActionType {
 	case "Send":
 		step.TestData["MsgType"] = step.TestFunction
+		log.Info("Send data: ", step.TestData)
 		err := simulator.SendFromJSON(step.TestData)
 		if nil != err {
 			fmt.Printf("Send failed:%s", err)
@@ -95,8 +97,10 @@ func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
 		actual, err := simulator.Receive()
 		if nil != err {
 			//TODO
+			log.Error("Receive failed: ", err)
 			return
 		}
+		log.Info("Receive data: ", actual)
 		step.SetActual(actual)
 		result, err := step.Validate()
 		if nil != err {
