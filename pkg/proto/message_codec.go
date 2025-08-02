@@ -1,68 +1,11 @@
 package proto
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
 )
-
-func init() {
-	//当前实现参考了深圳证券交易所的二进制协议，进行了简化，仅为了演示功能实现
-	//将来将基于antlr4定义dsl描述完整的深交所二进制协议，并生成对应的代码
-	RegisterMessage(1, func() Message { return &Logon{} })
-	RegisterMessage(2, func() Message { return &Logout{} })
-	RegisterMessage(3, func() Message { return &Heartbeat{} })
-	RegisterMessage(4, func() Message { return &BusinessReject{} })
-	RegisterMessage(100101, func() Message { return &NewOrder{} })
-	RegisterMessage(200102, func() Message { return &ExecutionConfirm{} })
-	RegisterMessage(200115, func() Message { return &ExecutionReport{} })
-	RegisterMessage(190007, func() Message { return &CancelRequest{} })
-	RegisterMessage(290008, func() Message { return &CancelReject{} })
-}
-
-// SzseMessageFactory is a factory function that creates a new message instance.
-// It returns a Message interface, which is implemented by all message types.
-type SzseMessageFactory func() Message
-
-var registry = map[uint32]SzseMessageFactory{}
-
-// RegisterMessage registers a message type with its factory function.
-func RegisterMessage(msgType uint32, factory SzseMessageFactory) {
-	registry[msgType] = factory
-}
-
-// BinarySzseMessageCodec is a codec for encoding and decoding messages.
-// It implements the MessageCodec interface for the SZSE binary protocol.
-type BinarySzseMessageCodec struct{}
-
-// EncodeJSONMap implements MessageCodec.
-func (codec *BinarySzseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
-	data, e := codec.JSONToStruct(message)
-	if e != nil {
-		return nil, fmt.Errorf("failed to encode message: %w", e)
-	}
-	return codec.Encode(data)
-}
-
-// JSONToStruct implements MessageCodec.
-func (codec *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (Message, error) {
-	msgType, err := strconv.Atoi(jsonMap["MsgType"].(string))
-	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
-	}
-	factory, ok := registry[uint32(msgType)]
-	if !ok {
-		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
-	}
-	message := factory()
-	err = ConvertMapToStruct(jsonMap, message)
-	if err != nil {
-		return nil, err
-	}
-	return message, nil
-}
 
 // ConvertMapToStruct converts a map to a struct.
 func ConvertMapToStruct(data map[string]interface{}, target interface{}) error {
@@ -144,6 +87,19 @@ func convertValue(input interface{}, targetType reflect.Type) (reflect.Value, er
 		default:
 			return reflect.Value{}, fmt.Errorf("cannot convert %T to uint32", input)
 		}
+	case reflect.Uint64:
+		switch v := input.(type) {
+		case float64:
+			return reflect.ValueOf(uint64(v)), nil
+		case string:
+			n, err := strconv.ParseUint(v, 10, 64)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			return reflect.ValueOf(uint64(n)), nil
+		default:
+			return reflect.Value{}, fmt.Errorf("cannot convert %T to uint32", input)
+		}
 
 	case reflect.Bool:
 		switch v := input.(type) {
@@ -191,122 +147,4 @@ func convertValue(input interface{}, targetType reflect.Type) (reflect.Value, er
 		return reflect.Value{}, err
 	}
 	return reflect.ValueOf(val).Elem(), nil
-}
-
-// Encode a message into a byte slice and prepends the message type and length.
-func (codec *BinarySzseMessageCodec) Encode(message Message) ([]byte, error) {
-	// 将字符串 MsgType 转换为 int32
-	msgType := message.MsgType()
-
-	data, err := message.Encode()
-	if err != nil {
-		return nil, err
-	}
-
-	length := len(data)
-	b := make([]byte, 8+length)
-	binary.BigEndian.PutUint32(b[0:4], uint32(msgType))
-	binary.BigEndian.PutUint32(b[4:8], uint32(length))
-	copy(b[8:], data)
-
-	return b, nil
-}
-
-// Decode a byte slice into a message.
-func (codec *BinarySzseMessageCodec) Decode(data []byte) (Message, error) {
-	if len(data) < 8 {
-		return nil, fmt.Errorf("data too short")
-	}
-
-	msgTypeInt := binary.BigEndian.Uint32(data[0:4])
-	length := binary.BigEndian.Uint32(data[4:8])
-	if len(data) < int(8+length) {
-		return nil, fmt.Errorf("data length mismatch")
-	}
-
-	body := data[8 : 8+length]
-
-	factory, ok := registry[msgTypeInt]
-	if !ok {
-		return nil, fmt.Errorf("unknown MsgType: %d", msgTypeInt)
-	}
-
-	msg := factory()
-	if err := msg.Decode(body); err != nil {
-		return nil, err
-	}
-
-	return msg, nil
-}
-
-// BinarySseMessageCodec is a codec for encoding and decoding messages.
-// It is a placeholder and should be implemented according to the SSE binary protocol.
-type BinarySseMessageCodec struct{}
-
-// EncodeJSONMap implements MessageCodec.
-func (b *BinarySseMessageCodec) EncodeJSONMap(map[string]interface{}) ([]byte, error) {
-	panic("unimplemented")
-}
-
-// JSONToStruct implements MessageCodec.
-func (b *BinarySseMessageCodec) JSONToStruct(map[string]interface{}) (Message, error) {
-	panic("unimplemented")
-}
-
-// Decode implements MessageCodec.
-func (b *BinarySseMessageCodec) Decode([]byte) (Message, error) {
-	panic("unimplemented")
-}
-
-// Encode implements MessageCodec.
-func (b *BinarySseMessageCodec) Encode(Message) ([]byte, error) {
-	panic("unimplemented")
-}
-
-// StepSzseMessageCodec is a codec for encoding and decoding messages.
-// It is a placeholder and should be implemented according to the SZSE step protocol.
-type StepSzseMessageCodec struct{}
-
-// EncodeJSONMap implements MessageCodec.
-func (s *StepSzseMessageCodec) EncodeJSONMap(map[string]interface{}) ([]byte, error) {
-	panic("unimplemented")
-}
-
-// JSONToStruct implements MessageCodec.
-func (s *StepSzseMessageCodec) JSONToStruct(map[string]interface{}) (Message, error) {
-	panic("unimplemented")
-}
-
-// Decode implements MessageCodec.
-func (s *StepSzseMessageCodec) Decode([]byte) (Message, error) {
-	panic("unimplemented")
-}
-
-// Encode implements MessageCodec.
-func (s *StepSzseMessageCodec) Encode(Message) ([]byte, error) {
-	panic("unimplemented")
-}
-
-// StepSseMessageCodec is a codec for encoding and decoding messages.
-// It is a placeholder and should be implemented according to the SSE step protocol.
-type StepSseMessageCodec struct{}
-
-// EncodeJSONMap implements MessageCodec.
-func (s *StepSseMessageCodec) EncodeJSONMap(map[string]interface{}) ([]byte, error) {
-	panic("unimplemented")
-}
-
-// JSONToStruct implements MessageCodec.
-func (s *StepSseMessageCodec) JSONToStruct(map[string]interface{}) (Message, error) {
-	panic("unimplemented")
-}
-
-// Decode implements MessageCodec.
-func (s *StepSseMessageCodec) Decode([]byte) (Message, error) {
-	panic("unimplemented")
-}
-
-// Encode implements MessageCodec.
-func (s *StepSseMessageCodec) Encode(Message) ([]byte, error) {
-	panic("unimplemented")
 }

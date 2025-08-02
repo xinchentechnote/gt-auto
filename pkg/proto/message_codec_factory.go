@@ -11,7 +11,8 @@ type GatewayProtocol string
 const (
 	// UnknownProtocol 未知协议
 	UnknownProtocol GatewayProtocol = "unknown"
-
+	//BinaryRisk simple risk control proto
+	BinaryRisk = "binary-risk"
 	// BinarySZSE shenzhen stock exchange binary protocol
 	BinarySZSE = "binary-szse"
 
@@ -56,14 +57,12 @@ type DefaultMessageCodecFactory struct {
 // - "step-sse"
 func (f *DefaultMessageCodecFactory) GetCodec(proto string) (MessageCodec, error) {
 	switch proto {
+	case string(BinaryRisk):
+		return &BinaryRiskMessageCodec{}, nil
 	case string(BinarySZSE):
 		return &BinarySzseMessageCodec{}, nil
 	case string(BinarySSE):
 		return &BinarySseMessageCodec{}, nil
-	case string(StepSZSE):
-		return &StepSzseMessageCodec{}, nil
-	case string(StepSSE):
-		return &StepSseMessageCodec{}, nil
 	default:
 		ErrUnsupportedProtocol := errors.New("unsupported protocol")
 		return nil, ErrUnsupportedProtocol

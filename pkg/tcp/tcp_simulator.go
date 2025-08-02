@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/enriquebris/goconcurrentqueue"
+	"github.com/xinchentechnote/fin-proto-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/proto"
 )
 
 // Simulator interface defines the methods for both OMS and TGW simulators
-type Simulator[T proto.Message] interface {
+type Simulator[T codec.BinaryCodec] interface {
 	Start() error
-	Send(message T) error
+	Send(interface{}, codec.BinaryCodec) error
 	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
 	SendFromJSON(message map[string]interface{}) error
 	Receive() (T, error)
@@ -24,7 +25,7 @@ type Simulator[T proto.Message] interface {
 }
 
 // OmsSimulator simulates the OMS client
-type OmsSimulator[T proto.Message] struct {
+type OmsSimulator[T codec.BinaryCodec] struct {
 	ServerAddress string
 	conn          net.Conn
 	queue         *goconcurrentqueue.FIFO
@@ -32,7 +33,7 @@ type OmsSimulator[T proto.Message] struct {
 }
 
 // TgwSimulator simulates the TGW server
-type TgwSimulator[T proto.Message] struct {
+type TgwSimulator[T codec.BinaryCodec] struct {
 	ListenAddress string
 	listener      net.Listener
 	stopChan      chan struct{}
@@ -65,8 +66,8 @@ func (sim *OmsSimulator[T]) Start() error {
 }
 
 // Send sends a message to the server
-func (sim *OmsSimulator[T]) Send(message T) error {
-	data, e := sim.Codec.Encode(message)
+func (sim *OmsSimulator[T]) Send(ext interface{}, message codec.BinaryCodec) error {
+	data, e := sim.Codec.Encode(ext, message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}
@@ -101,18 +102,18 @@ func (sim *OmsSimulator[T]) Receive() (T, error) {
 
 // Receive waits for a response from the server
 func (sim *OmsSimulator[T]) receive0() error {
-	head := make([]byte, 8)
+	head := make([]byte, 12)
 	_, err := io.ReadFull(sim.conn, head)
 	if err != nil {
 		return fmt.Errorf("failed to receive message: %w", err)
 	}
-	bodyLen := binary.BigEndian.Uint32(head[4:8])
+	bodyLen := binary.BigEndian.Uint32(head[8:12])
 	body := make([]byte, bodyLen)
 	_, er := io.ReadFull(sim.conn, body)
 	if er != nil {
 		return fmt.Errorf("failed to receive message: %w", err)
 	}
-	msg, e := sim.Codec.Decode(append(head, body...))
+	_, msg, e := sim.Codec.Decode(append(head, body...))
 	if e != nil {
 		return fmt.Errorf("failed to decode message: %w", err)
 	}
@@ -170,7 +171,7 @@ func (sim *TgwSimulator[T]) Start() error {
 func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 	defer conn.Close()
 
-	header := make([]byte, 8) // 4 bytes msgType + 4 bytes bodyLen
+	header := make([]byte, 12) // 4 bytes msgType + 4 bytes bodyLen
 	for {
 		// Read the header
 		_, err := io.ReadFull(conn, header)
@@ -182,7 +183,7 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 		}
 
 		// Parse bodyLen
-		bodyLen := binary.BigEndian.Uint32(header[4:8])
+		bodyLen := binary.BigEndian.Uint32(header[8:12])
 
 		// Read the body
 		body := make([]byte, bodyLen)
@@ -193,7 +194,7 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 		}
 
 		// Decode the message
-		msg, e := sim.Codec.Decode(append(header, body...))
+		_, msg, e := sim.Codec.Decode(append(header, body...))
 		if e != nil {
 			log.Printf("Error decoding message: %v", e)
 			continue
@@ -208,8 +209,8 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 }
 
 // Send sends a message to the client
-func (sim *TgwSimulator[T]) Send(message T) error {
-	data, e := sim.Codec.Encode(message)
+func (sim *TgwSimulator[T]) Send(ext interface{}, message codec.BinaryCodec) error {
+	data, e := sim.Codec.Encode(ext, message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}
@@ -225,11 +226,7 @@ func (sim *TgwSimulator[T]) sendByte(message []byte) error {
 }
 
 func (sim *TgwSimulator[T]) SendFromJSON(message map[string]interface{}) error {
-	data, e := sim.Codec.JSONToStruct(message)
-	if e != nil {
-		return fmt.Errorf("failed to encode message: %w", e)
-	}
-	bytes, e := sim.Codec.Encode(data)
+	bytes, e := sim.Codec.EncodeJSONMap(message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}

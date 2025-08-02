@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Package",
+            "name": "debug szse",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -15,6 +15,19 @@
                 "../pkg/testcase/testdata/test_case.csv",
                 "--config",
                 "../pkg/config/testdata/gw-auto.toml"
+            ],
+        },
+        {
+            "name": "debug risk",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "cmd/main.go",
+            "args": [
+                "--casePath",
+                "../pkg/testcase/testdata/risk_test_case.csv",
+                "--config",
+                "../pkg/config/testdata/gw-auto-risk.toml"
             ],
         }
     ]
