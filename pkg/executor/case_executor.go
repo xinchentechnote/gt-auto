@@ -8,7 +8,6 @@ import (
 	"github.com/xinchentechnote/gt-auto/pkg/proto"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"
-	"github.com/xinchentechnote/gt-auto/pkg/validate"
 )
 
 // CaseExecutor is responsible for executing test cases.
@@ -93,6 +92,14 @@ func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
 			log.Errorf("Send failed:%s", err)
 		}
 	case "Recieve":
+		step.TestData["MsgType"] = step.TestFunction
+		expect, err := simulator.GetCodec().JSONToStruct(step.TestData)
+		if nil != err {
+			//TODO
+			log.Error("Expect JsonToStruct failed: ", err)
+			return
+		}
+		step.SetExpect(expect)
 		actual, err := simulator.Receive()
 		if nil != err {
 			//TODO
@@ -101,10 +108,18 @@ func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
 		}
 		log.Info("Receive data: ", actual)
 		step.SetActual(actual)
+
+		log.Info("TestData data: ", step.TestData)
+		log.Info("Expected data: ", step.Expect)
 		result, err := step.Validate()
 		if nil != err {
+			log.Error("Validate failed: ", err)
 			return
 		}
-		validate.PrintCompareResult(result)
+		if result.DiffInfo == "" {
+			log.Infof("\nValidate step: %d, %s ✅ Match.", index, step.StepID)
+		} else {
+			log.Errorf("\nValidate step: %d, %s ❌ Mismatch: \n%s", index, step.StepID, result.DiffInfo)
+		}
 	}
 }

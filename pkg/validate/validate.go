@@ -21,8 +21,9 @@ type Diff struct {
 // CompareResult holds the result of the comparison.
 // It contains a boolean indicating if the structs are equal and a slice of differences.
 type CompareResult struct {
-	Equal bool
-	Diffs []Diff
+	Equal    bool
+	Diffs    []Diff
+	DiffInfo string
 }
 
 // CompareStruct compares two structs and returns a CompareResult.

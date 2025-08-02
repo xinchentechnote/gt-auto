@@ -5,6 +5,7 @@ go 1.24.2
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/enriquebris/goconcurrentqueue v0.7.0
+	github.com/google/go-cmp v0.7.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0

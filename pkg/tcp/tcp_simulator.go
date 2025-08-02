@@ -19,6 +19,7 @@ type Simulator[T proto.Message] interface {
 	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
 	SendFromJSON(message map[string]interface{}) error
 	Receive() (T, error)
+	GetCodec() proto.MessageCodec
 	Close() error
 }
 
@@ -38,6 +39,10 @@ type TgwSimulator[T proto.Message] struct {
 	queue         *goconcurrentqueue.FIFO
 	Codec         proto.MessageCodec
 	conn          net.Conn
+}
+
+func (sim *OmsSimulator[T]) GetCodec() proto.MessageCodec {
+	return sim.Codec
 }
 
 // Start connects to the TGWServer
@@ -122,6 +127,11 @@ func (sim *OmsSimulator[T]) receive0() error {
 // Close closes the OMSClient connection
 func (sim *OmsSimulator[T]) Close() error {
 	return sim.conn.Close()
+}
+
+// GetCodec returns the message codec used by the simulator
+func (sim *TgwSimulator[T]) GetCodec() proto.MessageCodec {
+	return sim.Codec
 }
 
 // Start listens for incoming connections on the TGWServer
@@ -215,11 +225,15 @@ func (sim *TgwSimulator[T]) sendByte(message []byte) error {
 }
 
 func (sim *TgwSimulator[T]) SendFromJSON(message map[string]interface{}) error {
-	data, e := sim.Codec.EncodeJSONMap(message)
+	data, e := sim.Codec.JSONToStruct(message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}
-	return sim.sendByte(data)
+	bytes, e := sim.Codec.Encode(data)
+	if e != nil {
+		return fmt.Errorf("failed to encode message: %w", e)
+	}
+	return sim.sendByte(bytes)
 }
 
 // Receive reads the next message from the queue

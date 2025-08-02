@@ -9,6 +9,8 @@ var ErrInvalidPacket = errors.New("invalid packet")
 type MessageCodec interface {
 	// EncodeJSONMap encodes a map into a byte slice.
 	EncodeJSONMap(map[string]interface{}) ([]byte, error)
+	// JSONToStruct converts a JSON-like map to a Message.
+	JSONToStruct(map[string]interface{}) (Message, error)
 	// Encode encodes a Message into a byte slice.
 	// It returns the encoded byte slice and an error if any.
 	Encode(Message) ([]byte, error)
