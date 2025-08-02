@@ -1,7 +1,6 @@
 package validate
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -65,71 +64,6 @@ func CompareStruct(a, b interface{}) CompareResult {
 	return CompareResult{
 		Equal: len(r.diffs) == 0,
 		Diffs: r.diffs,
-	}
-}
-
-// CompareJSON compares two JSON-like structures (maps and slices) and returns a list of differences.
-func CompareJSON(expect, actual interface{}) (CompareResult, error) {
-	var eMap, aMap map[string]interface{}
-	// Step 1: Marshal expect & actual
-	eBytes, err := json.Marshal(expect)
-	if err != nil {
-		return CompareResult{}, fmt.Errorf("marshal expect failed: %w", err)
-	}
-	aBytes, err := json.Marshal(actual)
-	if err != nil {
-		return CompareResult{}, fmt.Errorf("marshal actual failed: %w", err)
-	}
-
-	// Step 2: Unmarshal to map[string]interface{}
-	if err := json.Unmarshal(eBytes, &eMap); err != nil {
-		return CompareResult{}, fmt.Errorf("unmarshal expect failed: %w", err)
-	}
-	if err := json.Unmarshal(aBytes, &aMap); err != nil {
-		return CompareResult{}, fmt.Errorf("unmarshal actual failed: %w", err)
-	}
-
-	// Step 3: Compare the two JSON objects recursively
-	var diffs []Diff
-	compareJSON("", eMap, aMap, &diffs)
-	return CompareResult{
-		Equal: len(diffs) == 0,
-		Diffs: diffs,
-	}, nil
-}
-
-// compareJSON recursively compares JSON structures.
-func compareJSON(path string, expect, actual interface{}, diffs *[]Diff) {
-	switch expectType := expect.(type) {
-	case map[string]interface{}:
-		actualType, ok := actual.(map[string]interface{})
-		if !ok {
-			*diffs = append(*diffs, Diff{Path: path, Expect: expect, Actual: actual})
-			return
-		}
-		for k, v := range expectType {
-			newPath := path + "." + k
-			compareJSON(newPath, v, actualType[k], diffs)
-		}
-		for k := range actualType {
-			if _, exists := expectType[k]; !exists {
-				newPath := path + "." + k
-				compareJSON(newPath, nil, actualType[k], diffs)
-			}
-		}
-	case []interface{}:
-		bVal, ok := actual.([]interface{})
-		if !ok || len(expectType) != len(bVal) {
-			*diffs = append(*diffs, Diff{Path: path, Expect: expect, Actual: actual})
-			return
-		}
-		for i := range expectType {
-			compareJSON(path+fmt.Sprintf("[%d]", i), expectType[i], bVal[i], diffs)
-		}
-	default:
-		if expect != actual {
-			*diffs = append(*diffs, Diff{Path: path, Expect: expect, Actual: actual})
-		}
 	}
 }
 
