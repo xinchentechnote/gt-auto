@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -60,14 +59,14 @@ func (e *CaseExecutor) Execute() {
 }
 
 func (e *CaseExecutor) executeCase(index int, c testcase.TestCase) {
-	fmt.Printf("Start to execute case: %d, %s - %s\n", index, c.CaseNo, c.CaseTitle)
+	log.Infof("Start to execute case: %d, %s - %s\n", index, c.CaseNo, c.CaseTitle)
 	for i, step := range c.Steps {
 		e.executeStep(i, step)
 	}
 }
 
 func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
-	fmt.Printf("Start to execute step: %d, %s\n", index, step.StepID)
+	log.Infof("Start to execute step: %d, %s\n", index, step.StepID)
 	var simulator = e.simulatorMap[step.TestTool]
 	if nil == simulator {
 		conf := e.Config.SimulatorMap[step.TestTool]
@@ -91,7 +90,7 @@ func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
 		log.Info("Send data: ", step.TestData)
 		err := simulator.SendFromJSON(step.TestData)
 		if nil != err {
-			fmt.Printf("Send failed:%s", err)
+			log.Errorf("Send failed:%s", err)
 		}
 	case "Recieve":
 		actual, err := simulator.Receive()

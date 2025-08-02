@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/olekukonko/tablewriter"
+	log "github.com/sirupsen/logrus"
 )
 
 // Diff represents a difference between two structs.
@@ -173,9 +174,9 @@ func PrintCompareResult(result CompareResult) {
 	}
 
 	if result.Equal {
-		fmt.Println("✅ Pass.")
+		log.Info("\n✅ Pass.")
 	} else {
-		fmt.Println("❌ Diff:")
+		log.Error("\n❌ Diff:")
 		table.Render()
 	}
 }

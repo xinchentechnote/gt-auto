@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -12,8 +15,20 @@ import (
 )
 
 func main() {
-	log.SetFormatter(&log.JSONFormatter{})
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+			filename := filepath.Base(f.File)
+			funcName := f.Function
+			parts := strings.Split(funcName, "/")
+			shortFunc := parts[len(parts)-1]
+			return fmt.Sprintf("%s()", shortFunc),
+				fmt.Sprintf("%s:%d", filename, f.Line)
+		},
+	})
+	log.SetReportCaller(true)
 	log.SetLevel(log.InfoLevel)
+	log.SetReportCaller(true)
 	app := &cli.App{
 		Name:  "gw-auto",
 		Usage: "CLI tool for gateway automation testing",
@@ -31,13 +46,13 @@ func main() {
 		Action: func(c *cli.Context) error {
 			// 1.Parse test cases from the provided file
 			casePath := c.String("casePath")
-			fmt.Printf("Running test from: %s\n", casePath)
+			log.Info("Running test from: \n", casePath)
 			cases, err := testcase.LoadTestCases(casePath)
 			if err != nil {
 				panic(err)
 			}
 			configPath := c.String("config")
-			fmt.Printf("Using config from: %s\n", configPath)
+			log.Info("Using config from: \n", configPath)
 			// 2. Create a simulators based on the configuration
 			gwAutoConfig, err := config.ParseConfig(configPath)
 			if err != nil {
