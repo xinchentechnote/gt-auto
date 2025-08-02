@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,74 +27,45 @@ type CompareResult struct {
 	DiffInfo string
 }
 
-// CompareStruct compares two structs and returns a CompareResult.
-func CompareStruct(a, b interface{}) CompareResult {
-	var diffs []Diff
-	compareStruct(reflect.ValueOf(a), reflect.ValueOf(b), "", &diffs)
-	return CompareResult{
-		Equal: len(diffs) == 0,
-		Diffs: diffs,
+// DiffReporter is a custom reporter for cmp.Diff that collects differences.
+type DiffReporter struct {
+	path  cmp.Path
+	diffs []Diff
+}
+
+// PushStep adds a step to the path.
+func (r *DiffReporter) PushStep(ps cmp.PathStep) { r.path = append(r.path, ps) }
+
+// PopStep removes the last step from the path.
+func (r *DiffReporter) PopStep() { r.path = r.path[:len(r.path)-1] }
+
+// Report is called for each difference found by cmp.Diff.
+func (r *DiffReporter) Report(result cmp.Result) {
+	if !result.Equal() {
+		vx, vy := r.path.Last().Values()
+		r.diffs = append(r.diffs, Diff{
+			r.path.String(),
+			formatValue(vx),
+			formatValue(vy),
+		})
 	}
 }
 
-func compareStruct(expect, actual reflect.Value, path string, diffs *[]Diff) {
-	if expect.Kind() == reflect.Ptr {
-		expect = expect.Elem()
-	}
-	if actual.Kind() == reflect.Ptr {
-		actual = actual.Elem()
-	}
-
-	if !expect.IsValid() || !actual.IsValid() {
-		if expect.IsValid() != actual.IsValid() {
-			*diffs = append(*diffs, Diff{Path: path, Expect: fmtVal(expect), Actual: fmtVal(actual)})
-		}
-		return
-	}
-
-	if expect.Type() != actual.Type() {
-		*diffs = append(*diffs, Diff{Path: path, Expect: fmtVal(expect), Actual: fmtVal(actual)})
-		return
-	}
-
-	switch expect.Kind() {
-	case reflect.Struct:
-		for i := 0; i < expect.NumField(); i++ {
-			field := expect.Type().Field(i)
-			if field.PkgPath != "" {
-				continue
-			}
-			fieldPath := field.Name
-			if path != "" {
-				fieldPath = path + "." + field.Name
-			}
-			compareStruct(expect.Field(i), actual.Field(i), fieldPath, diffs)
-		}
-	case reflect.Slice, reflect.Array:
-		if expect.Len() != actual.Len() {
-			*diffs = append(*diffs, Diff{Path: path + ".length", Expect: expect.Len(), Actual: actual.Len()})
-			return
-		}
-		for i := 0; i < expect.Len(); i++ {
-			elemPath := fmt.Sprintf("%s[%d]", path, i)
-			compareStruct(expect.Index(i), actual.Index(i), elemPath, diffs)
-		}
-	default:
-		if !reflect.DeepEqual(expect.Interface(), actual.Interface()) {
-			*diffs = append(*diffs, Diff{
-				Path:   path,
-				Expect: expect.Interface(),
-				Actual: actual.Interface(),
-			})
-		}
-	}
-}
-
-func fmtVal(v reflect.Value) interface{} {
+func formatValue(v reflect.Value) interface{} {
 	if !v.IsValid() {
-		return nil
+		return "<nil>"
 	}
 	return v.Interface()
+}
+
+// CompareStruct compares two structs and returns a CompareResult.
+func CompareStruct(a, b interface{}) CompareResult {
+	r := &DiffReporter{}
+	cmp.Diff(a, b, cmp.Reporter(r))
+	return CompareResult{
+		Equal: len(r.diffs) == 0,
+		Diffs: r.diffs,
+	}
 }
 
 // CompareJSON compares two JSON-like structures (maps and slices) and returns a list of differences.
