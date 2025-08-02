@@ -1,11 +1,10 @@
 package config
 
 import (
-	"fmt"
-	"log"
 	"os"
 
 	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
 )
 
 // GwAutoConfig represents the configuration
@@ -59,6 +58,6 @@ func ParseConfig(filePath string) (*GwAutoConfig, error) {
 		return nil, err
 	}
 
-	fmt.Printf("Parsed config: %+v\n", config.Simulators)
+	log.Info("Parsed config: \n", config.Simulators)
 	return &config, nil
 }

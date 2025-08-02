@@ -2,11 +2,12 @@ package testcase
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // CSVCaseParser implements the CaseParser interface for CSV files.
@@ -65,7 +66,7 @@ func (p *CSVCaseParser) Parse() ([]TestCase, error) {
 		}
 		data, err := p.findTestData(step.TestDataSheet, step.StepID)
 		if err != nil {
-			fmt.Printf("Error finding test data for %s step %s: %v\n", step.TestDataSheet, step.StepID, err)
+			log.Infof("Error finding test data for %s step %s: %v\n", step.TestDataSheet, step.StepID, err)
 			continue
 		}
 		step.TestData = data

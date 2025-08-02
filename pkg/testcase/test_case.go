@@ -22,6 +22,7 @@ func (t *TestStep) SetActual(actual interface{}) {
 
 // Validate expect and actual
 func (t *TestStep) Validate() (validate.CompareResult, error) {
+	delete(t.TestData, "StepId")
 	return validate.CompareJSON(t.TestData, t.actual)
 }
 
