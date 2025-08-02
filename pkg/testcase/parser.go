@@ -17,7 +17,7 @@ type CSVCaseParser struct {
 }
 
 // Parse parses CSV data and returns test cases.
-func (p *CSVCaseParser) Parse() ([]TestCase, error) {
+func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 	file, err := os.Open(p.FilePath)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (p *CSVCaseParser) Parse() ([]TestCase, error) {
 
 	_, _ = reader.Read() // skip header
 
-	var cases []TestCase
+	var cases []*TestCase
 	var currentCase *TestCase
 
 	for {
@@ -48,7 +48,7 @@ func (p *CSVCaseParser) Parse() ([]TestCase, error) {
 				CaseTitle: record[1],
 				Steps:     []TestStep{},
 			}
-			cases = append(cases, *currentCase)
+			cases = append(cases, currentCase)
 		}
 
 		if currentCase == nil {
@@ -71,7 +71,7 @@ func (p *CSVCaseParser) Parse() ([]TestCase, error) {
 		}
 		step.TestData = data
 		currentCase.Steps = append(currentCase.Steps, step)
-		cases[len(cases)-1] = *currentCase
+		cases[len(cases)-1] = currentCase
 	}
 	return cases, nil
 }

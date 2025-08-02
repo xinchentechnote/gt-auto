@@ -8,7 +8,7 @@ import (
 
 // LoadTestCases load test cases by file path
 // It's just support csv now
-func LoadTestCases(filePath string) ([]TestCase, error) {
+func LoadTestCases(filePath string) ([]*TestCase, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	var parser CaseParser
 

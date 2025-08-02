@@ -30,7 +30,7 @@ func (t *TestStep) SetExpect(expect interface{}) {
 
 // Validate expect and actual
 func (t *TestStep) Validate() validate.CompareResult {
-	result := validate.CompareStruct(t.TestData, t.actual)
+	result := validate.CompareStruct(t.Expect, t.actual)
 	return result
 }
 
@@ -39,7 +39,7 @@ type StepValidateResult struct {
 	Index  int
 	StepID string
 	Passed bool
-	Desc   string
+	Detail validate.CompareResult
 }
 
 // TestCase represents a test case with its steps.
@@ -50,7 +50,17 @@ type TestCase struct {
 	ValidateResults []StepValidateResult
 }
 
+// AddValidateResult collect validate result for test case
+func (t *TestCase) AddValidateResult(index int, stepID string, result validate.CompareResult) {
+	t.ValidateResults = append(t.ValidateResults, StepValidateResult{
+		Index:  index,
+		StepID: stepID,
+		Passed: result.Equal,
+		Detail: result,
+	})
+}
+
 // CaseParser is an interface for parsing test cases from different formats.
 type CaseParser interface {
-	Parse() ([]TestCase, error)
+	Parse() ([]*TestCase, error)
 }
