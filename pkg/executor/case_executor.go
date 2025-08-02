@@ -8,6 +8,7 @@ import (
 	"github.com/xinchentechnote/gt-auto/pkg/proto"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"
+	"github.com/xinchentechnote/gt-auto/pkg/validate"
 )
 
 // CaseExecutor is responsible for executing test cases.
@@ -60,11 +61,11 @@ func (e *CaseExecutor) Execute() {
 func (e *CaseExecutor) executeCase(index int, c testcase.TestCase) {
 	log.Infof("Start to execute case: %d, %s - %s\n", index, c.CaseNo, c.CaseTitle)
 	for i, step := range c.Steps {
-		e.executeStep(i, step)
+		e.executeStep(i, c, step)
 	}
 }
 
-func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
+func (e *CaseExecutor) executeStep(index int, c testcase.TestCase, step testcase.TestStep) {
 	log.Infof("Start to execute step: %d, %s\n", index, step.StepID)
 	var simulator = e.simulatorMap[step.TestTool]
 	if nil == simulator {
@@ -111,15 +112,20 @@ func (e *CaseExecutor) executeStep(index int, step testcase.TestStep) {
 
 		log.Info("TestData data: ", step.TestData)
 		log.Info("Expected data: ", step.Expect)
-		result, err := step.Validate()
-		if nil != err {
-			log.Error("Validate failed: ", err)
-			return
+		result := step.Validate()
+		svr := testcase.StepValidateResult{
+			Index:  index,
+			StepID: step.StepID,
 		}
-		if result.DiffInfo == "" {
-			log.Infof("\nValidate step: %d, %s ✅ Match.", index, step.StepID)
-		} else {
-			log.Errorf("\nValidate step: %d, %s ❌ Mismatch: \n%s", index, step.StepID, result.DiffInfo)
-		}
+		// if result.DiffInfo == "" {
+		// 	log.Infof("\nValidate step: %d, %s ✅ Match.", index, step.StepID)
+		// 	svr.Passed = true
+		// } else {
+		// 	log.Errorf("\nValidate step: %d, %s ❌ Mismatch: \n%s", index, step.StepID, result.DiffInfo)
+		// 	svr.Passed = false
+		// 	svr.Desc = result.DiffInfo
+		// }
+		c.ValidateResults = append(c.ValidateResults, svr)
+		validate.PrintCompareResult(result)
 	}
 }
