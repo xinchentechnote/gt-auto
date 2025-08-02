@@ -38,21 +38,30 @@ func RegisterMessage(msgType uint32, factory SzseMessageFactory) {
 type BinarySzseMessageCodec struct{}
 
 // EncodeJSONMap implements MessageCodec.
-func (codec *BinarySzseMessageCodec) EncodeJSONMap(jsonMap map[string]interface{}) ([]byte, error) {
+func (codec *BinarySzseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
+	data, e := codec.JSONToStruct(message)
+	if e != nil {
+		return nil, fmt.Errorf("failed to encode message: %w", e)
+	}
+	return codec.Encode(data)
+}
+
+// JSONToStruct implements MessageCodec.
+func (codec *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (Message, error) {
 	msgType, err := strconv.Atoi(jsonMap["MsgType"].(string))
 	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["msgType"].(string))
+		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
 	}
 	factory, ok := registry[uint32(msgType)]
 	if !ok {
-		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["msgType"].(string))
+		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
 	}
 	message := factory()
 	err = ConvertMapToStruct(jsonMap, message)
 	if err != nil {
 		return nil, err
 	}
-	return codec.Encode(message)
+	return message, nil
 }
 
 // ConvertMapToStruct converts a map to a struct.
@@ -239,6 +248,11 @@ func (b *BinarySseMessageCodec) EncodeJSONMap(map[string]interface{}) ([]byte, e
 	panic("unimplemented")
 }
 
+// JSONToStruct implements MessageCodec.
+func (b *BinarySseMessageCodec) JSONToStruct(map[string]interface{}) (Message, error) {
+	panic("unimplemented")
+}
+
 // Decode implements MessageCodec.
 func (b *BinarySseMessageCodec) Decode([]byte) (Message, error) {
 	panic("unimplemented")
@@ -258,6 +272,11 @@ func (s *StepSzseMessageCodec) EncodeJSONMap(map[string]interface{}) ([]byte, er
 	panic("unimplemented")
 }
 
+// JSONToStruct implements MessageCodec.
+func (s *StepSzseMessageCodec) JSONToStruct(map[string]interface{}) (Message, error) {
+	panic("unimplemented")
+}
+
 // Decode implements MessageCodec.
 func (s *StepSzseMessageCodec) Decode([]byte) (Message, error) {
 	panic("unimplemented")
@@ -274,6 +293,11 @@ type StepSseMessageCodec struct{}
 
 // EncodeJSONMap implements MessageCodec.
 func (s *StepSseMessageCodec) EncodeJSONMap(map[string]interface{}) ([]byte, error) {
+	panic("unimplemented")
+}
+
+// JSONToStruct implements MessageCodec.
+func (s *StepSseMessageCodec) JSONToStruct(map[string]interface{}) (Message, error) {
 	panic("unimplemented")
 }
 
