@@ -7,8 +7,8 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
+	"github.com/xinchentechnote/fin-proto-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/config"
-	"github.com/xinchentechnote/gt-auto/pkg/proto"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"
 )
@@ -17,7 +17,7 @@ import (
 type CaseExecutor struct {
 	Cases        []*testcase.TestCase
 	Config       config.GwAutoConfig
-	simulatorMap map[string]tcp.Simulator[proto.Message]
+	simulatorMap map[string]tcp.Simulator[codec.BinaryCodec]
 }
 
 // NewCaseExecutor creates a new CaseExecutor instance.
@@ -25,7 +25,7 @@ func NewCaseExecutor(config config.GwAutoConfig, cases []*testcase.TestCase) *Ca
 	executor := &CaseExecutor{
 		Cases:        cases,
 		Config:       config,
-		simulatorMap: make(map[string]tcp.Simulator[proto.Message]),
+		simulatorMap: make(map[string]tcp.Simulator[codec.BinaryCodec]),
 	}
 	executor.initSimulator()
 	return executor
@@ -33,7 +33,7 @@ func NewCaseExecutor(config config.GwAutoConfig, cases []*testcase.TestCase) *Ca
 
 func (e *CaseExecutor) initSimulator() {
 	for _, config := range e.Config.Simulators {
-		simulator, err := tcp.CreateSimulator[proto.Message](config)
+		simulator, err := tcp.CreateSimulator[codec.BinaryCodec](config)
 		if nil != err {
 			continue
 		}
@@ -98,7 +98,7 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 	if nil == simulator {
 		conf := e.Config.SimulatorMap[step.TestTool]
 		var err error
-		simulator, err = tcp.CreateSimulator[proto.Message](conf)
+		simulator, err = tcp.CreateSimulator[codec.BinaryCodec](conf)
 		if nil != err {
 			return
 		}

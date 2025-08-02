@@ -3,12 +3,13 @@ package tcp
 import (
 	"fmt"
 
+	"github.com/xinchentechnote/fin-proto-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/config"
 	"github.com/xinchentechnote/gt-auto/pkg/proto"
 )
 
 // CreateSimulator creates a simulator based on the provided configuration.
-func CreateSimulator[T proto.Message](config config.SimulatorConfig) (Simulator[T], error) {
+func CreateSimulator[T codec.BinaryCodec](config config.SimulatorConfig) (Simulator[T], error) {
 	codec, err := proto.GetDefaultMessageCodecFactory().GetCodec(config.Protocol)
 	if err != nil {
 		return nil, err
