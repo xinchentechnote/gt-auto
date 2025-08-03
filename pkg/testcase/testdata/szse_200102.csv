@@ -1,3 +1,3 @@
-StepId,OrderID,ClOrdID,OrigClOrdID,ExecID,ExecType,OrdStatus,OrdRejReason
-new_order_003,ORDERID00001,CLORD0001,ORIGCLORD1,EXECID000001,0,2,0
-new_order_004,ORDERID00001,CLORD0001,ORIGCLORD1,EXECID000001,0,2,09
+StepId,PartitionNo,ReportIndex,ApplID,ReportingPBUID,SubmittingPBUID,SecurityID,SecurityIDSource,OwnerType,ClearingFirm,TransactTime,UserInfo,OrderID,ClOrdID,QuoteMsgID,OrigClOrdID,ExecID,ExecType,OrdStatus,OrdRejReason,LeavesQty,CumQty,Side,OrdType,OrderQty,Price,AccountID,BranchID,OrderRestrictions
+new_order_003,1,2,010,p001,s001,000001,101,1,1,20250101120000,u0001,o001,c0001,q0001,o0001,e0001,1,1,9527,100,10,1,1,1000,100,a0001,b01,1
+new_order_004,1,2,010,p001,s001,000001,101,1,1,20250101120000,u0001,o001,c0001,q0001,o0001,e0001,1,1,9527,100,10,1,1,1000,100,a0001,b01,1

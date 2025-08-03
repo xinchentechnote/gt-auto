@@ -1,0 +1,5 @@
+CaseNo,CaseTitle,StepId,SleepTime,Desc,ActionType,TestTool,TestFunction,TestDataSheet
+szse_001,order,new_order_001,1,oms send new order,Send,szse_bin_oms_1,100101,szse_100101
+,,new_order_002,1,tgw recieve new order,Recieve,szse_bin_tgw_1,100101,szse_100101
+,,new_order_003,1,tgw send confirm,Send,szse_bin_tgw_1,200102,szse_200102
+,,new_order_004,1,oms revieve confirm,Recieve,szse_bin_oms_1,200102,szse_200102

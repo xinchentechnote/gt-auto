@@ -25,7 +25,7 @@ func TestCSVCaseParserParse(t *testing.T) {
 	assert.Equal(t, "szse_bin_oms_1", tc.Steps[0].TestTool)
 	assert.Equal(t, "100101", tc.Steps[0].TestFunction)
 	assert.Equal(t, "new_order_001", tc.Steps[0].TestData["StepId"])
-	assert.Equal(t, "ORDER00001", tc.Steps[0].TestData["ClOrdID"])
+	assert.Equal(t, "c0001", tc.Steps[0].TestData["ClOrdID"])
 
 	assert.Equal(t, "new_order_002", tc.Steps[1].StepID)
 	assert.Equal(t, "szse_bin_tgw_1", tc.Steps[1].TestTool)
