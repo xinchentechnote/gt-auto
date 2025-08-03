@@ -8,7 +8,7 @@ import (
 )
 
 func TestCSVCaseParserParse(t *testing.T) {
-	filePath := filepath.Join("testdata", "test_case.csv")
+	filePath := filepath.Join("testdata", "szse_test_case.csv")
 
 	parser := &CSVCaseParser{FilePath: filePath}
 	cases, err := parser.Parse()
@@ -17,7 +17,7 @@ func TestCSVCaseParserParse(t *testing.T) {
 	assert.Len(t, cases, 1, "should parse 1 test case")
 
 	tc := cases[0]
-	assert.Equal(t, "sz_001", tc.CaseNo)
+	assert.Equal(t, "szse_001", tc.CaseNo)
 	assert.Equal(t, "order", tc.CaseTitle)
 	assert.Len(t, tc.Steps, 4, "should have 4 steps")
 

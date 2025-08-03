@@ -75,6 +75,10 @@ func (f *DefaultMessageCodecFactory) GetFramer(proto string) (Framer, error) {
 	switch proto {
 	case string(BinaryRisk):
 		return &RiskBinFramer{}, nil
+	case string(BinarySZSE):
+		return &SzseBinFramer{}, nil
+	case string(BinarySSE):
+		return &SseBinFramer{}, nil
 	default:
 		ErrUnsupportedProtocol := errors.New("unsupported protocol")
 		return nil, ErrUnsupportedProtocol

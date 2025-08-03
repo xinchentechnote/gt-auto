@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseConfig(t *testing.T) {
-	config, err := config.ParseConfig("testdata/gw-auto.toml")
+	config, err := config.ParseConfig("testdata/gw-auto-szse.toml")
 	if err != nil {
 		t.Fatalf("failed to parse config: %v", err)
 	}
@@ -19,7 +19,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, "oms", config.Simulators[1].Type)
 	assert.Equal(t, "tcp", config.Simulators[1].Communication)
 	assert.Equal(t, "binary-szse", config.Simulators[1].Protocol)
-	assert.Equal(t, "localhost:9001", config.Simulators[1].ServerAddress)
+	assert.Equal(t, "localhost:9003", config.Simulators[1].ServerAddress)
 	assert.Equal(t, "", config.Simulators[1].ListenAddress)
 	assert.False(t, config.Simulators[1].AutoStart)
 	// Check the second simulator
@@ -28,7 +28,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, "tcp", config.Simulators[0].Communication)
 	assert.Equal(t, "binary-szse", config.Simulators[0].Protocol)
 	assert.Equal(t, "", config.Simulators[0].ServerAddress)
-	assert.Equal(t, ":9001", config.Simulators[0].ListenAddress)
+	assert.Equal(t, ":9003", config.Simulators[0].ListenAddress)
 	assert.True(t, config.Simulators[0].AutoStart)
 
 	config.InitConfigMap()
