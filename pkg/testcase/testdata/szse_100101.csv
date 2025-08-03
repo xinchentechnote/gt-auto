@@ -1,3 +1,3 @@
-StepId,ClOrdID,Price,Qty,SecurityID,MarketID,ApplID,Side
-new_order_001,ORDER00001,123456789,100,000001,101,001,1
-new_order_002,ORDER00001,123456789,100,000001,101,001,1
+StepId,ApplID,SubmittingPBUID,SecurityID,SecurityIDSource,OwnerType,ClearingFirm,TransactTime,UserInfo,ClOrdID,AccountID,BranchID,OrderRestrictions,Side,OrdType,OrderQty,Price
+new_order_001,010,b0001,000001,102,1,1,20250101120000,u0001,c0001,a0001,b01,o01,1,1,1000,100
+new_order_002,010,b0001,000001,102,1,1,20250101120000,u0001,c0001,a0001,b01,o01,1,1,1000,100

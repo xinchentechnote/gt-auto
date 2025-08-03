@@ -41,6 +41,18 @@ func (codec *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}
 	if err != nil {
 		return nil, err
 	}
+	switch message.(type) {
+	case *szse_bin.NewOrder:
+		ext, err := szse_bin.NewNewOrderMessageByApplId(jsonMap["ApplID"].(string))
+		if err == nil {
+			message.(*szse_bin.NewOrder).ApplExtend = ext
+		}
+	case *szse_bin.ExecutionConfirm:
+		ext, err := szse_bin.NewExecutionConfirmMessageByApplId(jsonMap["ApplID"].(string))
+		if err == nil {
+			message.(*szse_bin.ExecutionConfirm).ApplExtend = ext
+		}
+	}
 	err = ConvertMapToStruct(jsonMap, message)
 	if err != nil {
 		return nil, err

@@ -12,9 +12,9 @@
             "program": "cmd/main.go",
             "args": [
                 "--casePath",
-                "../pkg/testcase/testdata/test_case.csv",
+                "../pkg/testcase/testdata/szse_test_case.csv",
                 "--config",
-                "../pkg/config/testdata/gw-auto.toml"
+                "../pkg/config/testdata/gw-auto-szse.toml"
             ],
         },
         {

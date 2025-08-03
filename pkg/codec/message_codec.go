@@ -81,7 +81,7 @@ func convertValue(input interface{}, targetType reflect.Type) (reflect.Value, er
 		default:
 			return reflect.Value{}, fmt.Errorf("cannot convert %T to string", input)
 		}
-	case reflect.Int, reflect.Int32, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		var i int64
 		switch v := input.(type) {
 		case float64:
@@ -97,32 +97,21 @@ func convertValue(input interface{}, targetType reflect.Type) (reflect.Value, er
 		}
 		return reflect.ValueOf(i).Convert(targetType), nil
 
-	case reflect.Uint32:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		var i uint64
 		switch v := input.(type) {
 		case float64:
-			return reflect.ValueOf(uint32(v)), nil
-		case string:
-			n, err := strconv.ParseUint(v, 10, 32)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			return reflect.ValueOf(uint32(n)), nil
-		default:
-			return reflect.Value{}, fmt.Errorf("cannot convert %T to uint32", input)
-		}
-	case reflect.Uint64:
-		switch v := input.(type) {
-		case float64:
-			return reflect.ValueOf(uint64(v)), nil
+			i = uint64(v)
 		case string:
 			n, err := strconv.ParseUint(v, 10, 64)
 			if err != nil {
 				return reflect.Value{}, err
 			}
-			return reflect.ValueOf(uint64(n)), nil
+			i = n
 		default:
-			return reflect.Value{}, fmt.Errorf("cannot convert %T to uint32", input)
+			return reflect.Value{}, fmt.Errorf("cannot convert %T to uint", input)
 		}
+		return reflect.ValueOf(i).Convert(targetType), nil
 
 	case reflect.Bool:
 		switch v := input.(type) {
@@ -144,19 +133,6 @@ func convertValue(input interface{}, targetType reflect.Type) (reflect.Value, er
 			val := reflect.New(targetType).Elem()
 			err := ConvertMapToStruct(m, val.Addr().Interface())
 			return val, err
-		}
-	case reflect.Uint8:
-		switch v := input.(type) {
-		case float64:
-			return reflect.ValueOf(uint8(v)), nil
-		case string:
-			n, err := strconv.ParseUint(v, 10, 8)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			return reflect.ValueOf(uint8(n)), nil
-		default:
-			return reflect.Value{}, fmt.Errorf("cannot convert %T to uint8", input)
 		}
 	}
 

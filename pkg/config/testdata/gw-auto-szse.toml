@@ -1,0 +1,15 @@
+[[simulators]]
+name = "szse_bin_tgw_1"
+type = "tgw"
+communication = "tcp"
+protocol = "binary-szse"
+listen_address = ":9003"
+auto_start = true
+
+[[simulators]]
+name = "szse_bin_oms_1"
+type = "oms"
+communication = "tcp"
+protocol = "binary-szse"
+server_address = "localhost:9003"
+auto_start = false
