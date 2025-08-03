@@ -1,48 +1,48 @@
 package tcp
 
 import (
-	"encoding/binary"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"time"
 
 	"github.com/enriquebris/goconcurrentqueue"
-	"github.com/xinchentechnote/fin-proto-go/codec"
-	"github.com/xinchentechnote/gt-auto/pkg/proto"
+	fin_codec "github.com/xinchentechnote/fin-proto-go/codec"
+	"github.com/xinchentechnote/gt-auto/pkg/codec"
 )
 
 // Simulator interface defines the methods for both OMS and TGW simulators
-type Simulator[T codec.BinaryCodec] interface {
+type Simulator[T fin_codec.BinaryCodec] interface {
 	Start() error
-	Send(interface{}, codec.BinaryCodec) error
+	Send(interface{}, fin_codec.BinaryCodec) error
 	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
 	SendFromJSON(message map[string]interface{}) error
 	Receive() (T, error)
-	GetCodec() proto.MessageCodec
+	GetCodec() codec.MessageCodec
 	Close() error
 }
 
 // OmsSimulator simulates the OMS client
-type OmsSimulator[T codec.BinaryCodec] struct {
+type OmsSimulator[T fin_codec.BinaryCodec] struct {
 	ServerAddress string
 	conn          net.Conn
 	queue         *goconcurrentqueue.FIFO
-	Codec         proto.MessageCodec
+	Codec         codec.MessageCodec
+	Framer        codec.Framer
 }
 
 // TgwSimulator simulates the TGW server
-type TgwSimulator[T codec.BinaryCodec] struct {
+type TgwSimulator[T fin_codec.BinaryCodec] struct {
 	ListenAddress string
 	listener      net.Listener
 	stopChan      chan struct{}
 	queue         *goconcurrentqueue.FIFO
-	Codec         proto.MessageCodec
+	Codec         codec.MessageCodec
+	Framer        codec.Framer
 	conn          net.Conn
 }
 
-func (sim *OmsSimulator[T]) GetCodec() proto.MessageCodec {
+func (sim *OmsSimulator[T]) GetCodec() codec.MessageCodec {
 	return sim.Codec
 }
 
@@ -66,7 +66,7 @@ func (sim *OmsSimulator[T]) Start() error {
 }
 
 // Send sends a message to the server
-func (sim *OmsSimulator[T]) Send(ext interface{}, message codec.BinaryCodec) error {
+func (sim *OmsSimulator[T]) Send(ext interface{}, message fin_codec.BinaryCodec) error {
 	data, e := sim.Codec.Encode(ext, message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
@@ -102,18 +102,11 @@ func (sim *OmsSimulator[T]) Receive() (T, error) {
 
 // Receive waits for a response from the server
 func (sim *OmsSimulator[T]) receive0() error {
-	head := make([]byte, 12)
-	_, err := io.ReadFull(sim.conn, head)
+	data, err := sim.Framer.ReadFrame(sim.conn)
 	if err != nil {
 		return fmt.Errorf("failed to receive message: %w", err)
 	}
-	bodyLen := binary.BigEndian.Uint32(head[8:12])
-	body := make([]byte, bodyLen)
-	_, er := io.ReadFull(sim.conn, body)
-	if er != nil {
-		return fmt.Errorf("failed to receive message: %w", err)
-	}
-	_, msg, e := sim.Codec.Decode(append(head, body...))
+	_, msg, e := sim.Codec.Decode(data)
 	if e != nil {
 		return fmt.Errorf("failed to decode message: %w", err)
 	}
@@ -131,7 +124,7 @@ func (sim *OmsSimulator[T]) Close() error {
 }
 
 // GetCodec returns the message codec used by the simulator
-func (sim *TgwSimulator[T]) GetCodec() proto.MessageCodec {
+func (sim *TgwSimulator[T]) GetCodec() codec.MessageCodec {
 	return sim.Codec
 }
 
@@ -171,35 +164,17 @@ func (sim *TgwSimulator[T]) Start() error {
 func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 	defer conn.Close()
 
-	header := make([]byte, 12) // 4 bytes msgType + 4 bytes bodyLen
 	for {
-		// Read the header
-		_, err := io.ReadFull(conn, header)
+		data, err := sim.Framer.ReadFrame(conn)
 		if err != nil {
-			if err != io.EOF {
-				log.Printf("Error reading header: %v", err)
-			}
-			break
+			log.Printf("Error decoding message: %v", err)
+			continue
 		}
-
-		// Parse bodyLen
-		bodyLen := binary.BigEndian.Uint32(header[8:12])
-
-		// Read the body
-		body := make([]byte, bodyLen)
-		_, err = io.ReadFull(conn, body)
-		if err != nil {
-			log.Printf("Error reading body: %v", err)
-			break
-		}
-
-		// Decode the message
-		_, msg, e := sim.Codec.Decode(append(header, body...))
+		_, msg, e := sim.Codec.Decode(data)
 		if e != nil {
 			log.Printf("Error decoding message: %v", e)
 			continue
 		}
-
 		e1 := sim.queue.Enqueue(msg)
 		if e1 != nil {
 			log.Printf("Error enqueuing message: %v", e1)
@@ -209,7 +184,7 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 }
 
 // Send sends a message to the client
-func (sim *TgwSimulator[T]) Send(ext interface{}, message codec.BinaryCodec) error {
+func (sim *TgwSimulator[T]) Send(ext interface{}, message fin_codec.BinaryCodec) error {
 	data, e := sim.Codec.Encode(ext, message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
