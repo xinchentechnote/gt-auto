@@ -1,4 +1,4 @@
-package proto
+package codec
 
 import (
 	"bytes"
@@ -12,6 +12,11 @@ import (
 // BinarySzseMessageCodec is a codec for encoding and decoding messages.
 // It implements the MessageCodec interface for the SZSE binary protocol.
 type BinarySzseMessageCodec struct{}
+
+// ProtoName implements MessageCodec.
+func (codec *BinarySzseMessageCodec) ProtoName() string {
+	return BinarySZSE
+}
 
 // EncodeJSONMap implements MessageCodec.
 func (codec *BinarySzseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {

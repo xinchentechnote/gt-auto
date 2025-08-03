@@ -1,4 +1,4 @@
-package proto
+package codec
 
 import (
 	"errors"
@@ -41,6 +41,7 @@ func GetDefaultMessageCodecFactory() MessageCodecFactory {
 // MessageCodecFactory is an interface for creating message codecs based on the protocol.
 type MessageCodecFactory interface {
 	GetCodec(proto string) (MessageCodec, error)
+	GetFramer(proto string) (Framer, error)
 }
 
 // DefaultMessageCodecFactory is the default implementation of MessageCodecFactory.
@@ -63,6 +64,17 @@ func (f *DefaultMessageCodecFactory) GetCodec(proto string) (MessageCodec, error
 		return &BinarySzseMessageCodec{}, nil
 	case string(BinarySSE):
 		return &BinarySseMessageCodec{}, nil
+	default:
+		ErrUnsupportedProtocol := errors.New("unsupported protocol")
+		return nil, ErrUnsupportedProtocol
+	}
+}
+
+// GetFramer returns a Framer based on the provided protocol.
+func (f *DefaultMessageCodecFactory) GetFramer(proto string) (Framer, error) {
+	switch proto {
+	case string(BinaryRisk):
+		return &RiskBinFramer{}, nil
 	default:
 		ErrUnsupportedProtocol := errors.New("unsupported protocol")
 		return nil, ErrUnsupportedProtocol

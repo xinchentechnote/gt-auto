@@ -1,4 +1,4 @@
-package proto_test
+package codec
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xinchentechnote/fin-proto-go/codec"
 	risk_bin "github.com/xinchentechnote/fin-proto-go/risk-bin/messages"
-	"github.com/xinchentechnote/gt-auto/pkg/proto"
 )
 
 type dummyMessage struct {
@@ -36,7 +35,7 @@ func init() {
 }
 
 func TestRiskMessageCodec_EncodeDecode(t *testing.T) {
-	codec := &proto.BinaryRiskMessageCodec{}
+	codec := &BinaryRiskMessageCodec{}
 
 	original := &dummyMessage{
 		Content: "test-tlv-payload",
@@ -55,7 +54,7 @@ func TestRiskMessageCodec_EncodeDecode(t *testing.T) {
 }
 
 func TestRiskMessageCodec_EncodeJsonMap(t *testing.T) {
-	codec := &proto.BinaryRiskMessageCodec{}
+	codec := &BinaryRiskMessageCodec{}
 
 	original := map[string]interface{}{
 		"MsgType": "999999",
@@ -86,7 +85,7 @@ func TestRiskMessageCodec_ConvertMapToStruct(t *testing.T) {
 		"Account":       "8",
 	}
 	var msg risk_bin.NewOrder
-	if err := proto.ConvertMapToStruct(original, &msg); err != nil {
+	if err := ConvertMapToStruct(original, &msg); err != nil {
 		t.Fatalf("failed to convert map to struct: %v", err)
 	}
 	assert.Equal(t, "1", msg.UniqueOrderId)

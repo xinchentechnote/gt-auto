@@ -1,4 +1,4 @@
-package proto
+package codec
 
 import (
 	"bytes"
@@ -11,6 +11,11 @@ import (
 
 // BinaryRiskMessageCodec risk proto message codec
 type BinaryRiskMessageCodec struct{}
+
+// ProtoName implements MessageCodec.
+func (b *BinaryRiskMessageCodec) ProtoName() string {
+	return BinaryRisk
+}
 
 // Decode implements MessageCodec.
 func (b *BinaryRiskMessageCodec) Decode(data []byte) (interface{}, codec.BinaryCodec, error) {

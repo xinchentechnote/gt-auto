@@ -1,10 +1,15 @@
-package proto
+package codec
 
 import "github.com/xinchentechnote/fin-proto-go/codec"
 
 // BinarySseMessageCodec is a codec for encoding and decoding messages.
 // It is a placeholder and should be implemented according to the SSE binary protocol.
 type BinarySseMessageCodec struct{}
+
+// ProtoName implements MessageCodec.
+func (b *BinarySseMessageCodec) ProtoName() string {
+	return BinarySSE
+}
 
 // EncodeJSONMap implements MessageCodec.
 func (b *BinarySseMessageCodec) EncodeJSONMap(map[string]interface{}) ([]byte, error) {

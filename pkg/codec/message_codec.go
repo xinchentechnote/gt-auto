@@ -1,4 +1,4 @@
-package proto
+package codec
 
 import (
 	"encoding/json"
@@ -15,6 +15,8 @@ var ErrInvalidPacket = errors.New("invalid packet")
 
 // MessageCodec is an interface for encoding and decoding messages.
 type MessageCodec interface {
+	//ProtoName name of the proto
+	ProtoName() string
 	// EncodeJSONMap encodes a map into a byte slice.
 	EncodeJSONMap(map[string]interface{}) ([]byte, error)
 	// JSONToStruct converts a JSON-like map to a Message.
