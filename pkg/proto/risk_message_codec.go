@@ -60,7 +60,7 @@ func (b *BinaryRiskMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (c
 	if err != nil {
 		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
 	}
-	message, err := risk_bin.NewMessageByMsgType(uint32(msgType))
+	message, err := risk_bin.NewRcBinaryMessageByMsgType(uint32(msgType))
 	if err != nil {
 		return nil, err
 	}

@@ -30,7 +30,7 @@ func (d *dummyMessage) Decode(buf *bytes.Buffer) error {
 }
 
 func init() {
-	risk_bin.RegisterMessage(999999, func() codec.BinaryCodec {
+	risk_bin.RegistryRcBinaryMsgTypeFactory(999999, func() codec.BinaryCodec {
 		return &dummyMessage{}
 	})
 }
