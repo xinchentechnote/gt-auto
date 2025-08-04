@@ -29,6 +29,19 @@
                 "--config",
                 "../pkg/config/testdata/gw-auto-risk.toml"
             ],
+        },
+        {
+            "name": "debug sse",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "cmd/main.go",
+            "args": [
+                "--casePath",
+                "../pkg/testcase/testdata/sse_test_case.csv",
+                "--config",
+                "../pkg/config/testdata/gw-auto-sse.toml"
+            ],
         }
     ]
 }
