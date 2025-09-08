@@ -6,16 +6,17 @@ import (
 
 // TestStep represents a single step in a test case.
 type TestStep struct {
-	StepID        string
-	SleepTime     string
-	Desc          string
-	ActionType    string
-	TestTool      string
-	TestFunction  string
-	TestDataSheet string
-	TestData      map[string]any
-	Expect        any
-	actual        any
+	StepID         string
+	SleepMs        string
+	StepDesc       string
+	ActionType     string
+	TestTool       string
+	MsgType        string
+	TestData       string
+	VerifyRequired bool
+	TestDatas      map[string]any
+	Expect         any
+	actual         any
 }
 
 // SetActual set recieve actual data
@@ -44,7 +45,7 @@ type StepValidateResult struct {
 
 // TestCase represents a test case with its steps.
 type TestCase struct {
-	CaseNo          string
+	CaseID          string
 	CaseTitle       string
 	Steps           []TestStep
 	ValidateResults []StepValidateResult

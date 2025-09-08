@@ -44,7 +44,7 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 
 		if strings.TrimSpace(record[0]) != "" {
 			currentCase = &TestCase{
-				CaseNo:    record[0],
+				CaseID:    record[0],
 				CaseTitle: record[1],
 				Steps:     []TestStep{},
 			}
@@ -56,20 +56,21 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 		}
 
 		step := TestStep{
-			StepID:        record[2],
-			SleepTime:     record[3],
-			Desc:          record[4],
-			ActionType:    record[5],
-			TestTool:      record[6],
-			TestFunction:  record[7],
-			TestDataSheet: record[8],
+			StepID:         record[2],
+			SleepMs:        record[3],
+			StepDesc:       record[4],
+			ActionType:     record[5],
+			VerifyRequired: strings.EqualFold(strings.TrimSpace(record[6]), "Y"),
+			TestTool:       record[7],
+			MsgType:        record[8],
+			TestData:       record[9],
 		}
-		data, err := p.findTestData(step.TestDataSheet, step.StepID)
+		data, err := p.findTestData(step.TestData, step.StepID)
 		if err != nil {
-			log.Infof("Error finding test data for %s step %s: %v\n", step.TestDataSheet, step.StepID, err)
+			log.Infof("Error finding test data for %s step %s: %v\n", step.TestData, step.StepID, err)
 			continue
 		}
-		step.TestData = data
+		step.TestDatas = data
 		currentCase.Steps = append(currentCase.Steps, step)
 		cases[len(cases)-1] = currentCase
 	}

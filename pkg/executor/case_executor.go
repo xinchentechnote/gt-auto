@@ -65,7 +65,7 @@ func (e *CaseExecutor) Execute() {
 }
 
 func (e *CaseExecutor) showResult(index int, c *testcase.TestCase) {
-	log.Infof("Show to case result: %d, %s - %s\n", index, c.CaseNo, c.CaseTitle)
+	log.Infof("Show to case result: %d, %s - %s\n", index, c.CaseID, c.CaseTitle)
 	for _, result := range c.ValidateResults {
 		if !result.Passed {
 			log.Errorf("Show to case result: %d, %s❌", result.Index, result.StepID)
@@ -86,7 +86,7 @@ func (e *CaseExecutor) showResult(index int, c *testcase.TestCase) {
 }
 
 func (e *CaseExecutor) executeCase(index int, c *testcase.TestCase) {
-	log.Infof("Start to execute case: %d, %s - %s\n", index, c.CaseNo, c.CaseTitle)
+	log.Infof("Start to execute case: %d, %s - %s\n", index, c.CaseID, c.CaseTitle)
 	for i, step := range c.Steps {
 		e.executeStep(i, c, &step)
 	}
@@ -113,15 +113,15 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 	time.Sleep(1000 * time.Millisecond)
 	switch step.ActionType {
 	case "Send":
-		step.TestData["MsgType"] = step.TestFunction
-		log.Info("Send data: ", step.TestData)
-		err := simulator.SendFromJSON(step.TestData)
+		step.TestDatas["MsgType"] = step.MsgType
+		log.Info("Send data: ", step.TestDatas)
+		err := simulator.SendFromJSON(step.TestDatas)
 		if nil != err {
 			log.Errorf("Send failed:%s", err)
 		}
 	case "Recieve":
-		step.TestData["MsgType"] = step.TestFunction
-		expect, err := simulator.GetCodec().JSONToStruct(step.TestData)
+		step.TestDatas["MsgType"] = step.MsgType
+		expect, err := simulator.GetCodec().JSONToStruct(step.TestDatas)
 		if nil != err {
 			//TODO
 			log.Error("Expect JsonToStruct failed: ", err)
@@ -134,7 +134,7 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 			log.Error("Receive failed: ", err)
 			return
 		}
-		log.Info("TestData data: ", step.TestData)
+		log.Info("TestData data: ", step.TestDatas)
 		log.Info("Actual data: ", actual)
 		step.SetActual(actual)
 		log.Info("Expected data: ", step.Expect)
