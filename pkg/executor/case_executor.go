@@ -134,12 +134,13 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 			log.Error("Receive failed: ", err)
 			return
 		}
-		log.Info("TestData data: ", step.TestDatas)
-		log.Info("Actual data: ", actual)
-		step.SetActual(actual)
-		log.Info("Expected data: ", step.Expect)
-		result := step.Validate()
-
-		c.AddValidateResult(index, step.StepID, result)
+		if step.VerifyRequired {
+			log.Info("TestData data: ", step.TestDatas)
+			log.Info("Actual data: ", actual)
+			step.SetActual(actual)
+			log.Info("Expected data: ", step.Expect)
+			result := step.Validate()
+			c.AddValidateResult(index, step.StepID, result)
+		}
 	}
 }
