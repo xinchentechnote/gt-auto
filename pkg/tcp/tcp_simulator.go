@@ -58,8 +58,10 @@ func (sim *OmsSimulator[T]) Start() error {
 	}
 	log.Printf("Connected to TGW server at %s", sim.ServerAddress)
 	go func() {
-		if err := sim.receive0(); err != nil {
-			log.Printf("receive0 error: %v", err)
+		for {
+			if err := sim.receive0(); err != nil {
+				log.Printf("receive0 error: %v", err)
+			}
 		}
 	}()
 	return nil
@@ -110,6 +112,7 @@ func (sim *OmsSimulator[T]) receive0() error {
 	if e != nil {
 		return fmt.Errorf("failed to decode message: %w", err)
 	}
+	log.Printf("Received message: %+v", msg)
 	e1 := sim.queue.Enqueue(msg)
 	if e1 != nil {
 		return fmt.Errorf("failed to enqueue message: %w", e1)
@@ -175,6 +178,7 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 			log.Printf("Error decoding message: %v", e)
 			continue
 		}
+		log.Printf("Received message: %+v", msg)
 		e1 := sim.queue.Enqueue(msg)
 		if e1 != nil {
 			log.Printf("Error enqueuing message: %v", e1)

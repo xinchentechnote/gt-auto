@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -65,6 +66,7 @@ func main() {
 			executor.Execute()
 			// 5. Save the report to a file
 			// 6. Print the report to the console
+			time.Sleep(time.Second * 5)
 			return nil
 		},
 	}
