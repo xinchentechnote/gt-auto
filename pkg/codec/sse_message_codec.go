@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/xinchentechnote/fin-proto-go/codec"
-	sse_bin "github.com/xinchentechnote/fin-proto-go/sse-bin/messages"
+	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
+	sse_bin "github.com/xinchentechnote/fin-proto-sse-bin-go/messages"
 )
 
 // BinarySseMessageCodec is a codec for encoding and decoding messages.

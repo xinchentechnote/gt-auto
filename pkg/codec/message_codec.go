@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/xinchentechnote/fin-proto-go/codec"
+	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 )
 
 // ErrInvalidPacket is returned when a packet is invalid.

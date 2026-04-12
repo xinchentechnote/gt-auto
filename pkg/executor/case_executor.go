@@ -7,7 +7,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
-	"github.com/xinchentechnote/fin-proto-go/codec"
+	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/config"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"

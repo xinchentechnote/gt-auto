@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/xinchentechnote/fin-proto-go/codec"
-	risk_bin "github.com/xinchentechnote/fin-proto-go/risk-bin/messages"
+	risk_bin "github.com/xinchentechnote/fin-proto-risk-bin-go/messages"
+	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 )
 
 // BinaryRiskMessageCodec risk proto message codec

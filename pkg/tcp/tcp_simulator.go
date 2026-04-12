@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/enriquebris/goconcurrentqueue"
-	fin_codec "github.com/xinchentechnote/fin-proto-go/codec"
+	fin_codec "github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/codec"
 )
 
