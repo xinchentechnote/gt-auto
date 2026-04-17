@@ -142,5 +142,7 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 			result := step.Validate()
 			c.AddValidateResult(index, step.StepID, result)
 		}
+	default:
+		log.Warnf("Unknown action type: %s", step.ActionType)
 	}
 }
