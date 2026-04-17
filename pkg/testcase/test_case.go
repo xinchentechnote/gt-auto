@@ -19,7 +19,7 @@ type TestStep struct {
 	actual         any
 }
 
-// SetActual set recieve actual data
+// SetActual set receive actual data
 func (t *TestStep) SetActual(actual interface{}) {
 	t.actual = actual
 }

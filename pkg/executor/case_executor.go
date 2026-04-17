@@ -119,7 +119,7 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 		if nil != err {
 			log.Errorf("Send failed:%s", err)
 		}
-	case "Recieve":
+	case "Receive":
 		step.TestDatas["MsgType"] = step.MsgType
 		expect, err := simulator.GetCodec().JSONToStruct(step.TestDatas)
 		if nil != err {
