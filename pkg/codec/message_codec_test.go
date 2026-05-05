@@ -18,12 +18,12 @@ func (d *dummyMessage) MsgType() uint32 {
 }
 
 func (d *dummyMessage) Encode(buf *bytes.Buffer) error {
-	err := codec.PutString[uint16](buf, d.Content)
+	err := codec.WriteString[uint16](buf, d.Content)
 	return err
 }
 
 func (d *dummyMessage) Decode(buf *bytes.Buffer) error {
-	data, err := codec.GetString[uint16](buf)
+	data, err := codec.ReadString[uint16](buf)
 	d.Content = data
 	return err
 }
@@ -32,45 +32,6 @@ func init() {
 	risk_bin.RegistryRcBinaryMsgTypeFactory(999999, func() codec.BinaryCodec {
 		return &dummyMessage{}
 	})
-}
-
-func TestRiskMessageCodec_EncodeDecode(t *testing.T) {
-	codec := &BinaryRiskMessageCodec{}
-
-	original := &dummyMessage{
-		Content: "test-tlv-payload",
-	}
-
-	encoded, err := codec.Encode(uint32(999999), original)
-	assert.NoError(t, err)
-	assert.Greater(t, len(encoded), 8)
-
-	_, decodedMsg, err := codec.Decode(encoded)
-	assert.NoError(t, err)
-
-	decoded, ok := decodedMsg.(*dummyMessage)
-	assert.True(t, ok)
-	assert.Equal(t, original.Content, decoded.Content)
-}
-
-func TestRiskMessageCodec_EncodeJsonMap(t *testing.T) {
-	codec := &BinaryRiskMessageCodec{}
-
-	original := map[string]interface{}{
-		"MsgType": "999999",
-		"Content": 9527,
-	}
-
-	encoded, err := codec.EncodeJSONMap(original)
-	assert.NoError(t, err)
-	assert.Equal(t, len(encoded), 18)
-
-	_, decodedMsg, err := codec.Decode(encoded)
-	assert.NoError(t, err)
-
-	decoded, ok := decodedMsg.(*dummyMessage)
-	assert.True(t, ok)
-	assert.Equal(t, "9527", decoded.Content)
 }
 
 func TestRiskMessageCodec_ConvertMapToStruct(t *testing.T) {

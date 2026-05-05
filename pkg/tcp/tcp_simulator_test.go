@@ -16,12 +16,12 @@ func (d *dummyMessage) MsgType() uint32 {
 }
 
 func (d *dummyMessage) Encode(buf *bytes.Buffer) error {
-	err := codec.PutString[uint16](buf, d.Content)
+	err := codec.WriteString[uint16](buf, d.Content)
 	return err
 }
 
 func (d *dummyMessage) Decode(buf *bytes.Buffer) error {
-	data, err := codec.GetString[uint16](buf)
+	data, err := codec.ReadString[uint16](buf)
 	d.Content = data
 	return err
 }
