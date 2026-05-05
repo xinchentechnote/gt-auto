@@ -61,9 +61,9 @@ func main() {
 			}
 			gwAutoConfig.InitConfigMap()
 			// 3. Execute the test cases
-			executor := executor.NewCaseExecutor(*gwAutoConfig, cases)
+			caseExecutor := executor.NewCaseExecutor(*gwAutoConfig, cases)
 			// 4. Collect the results,validate and generate a report
-			executor.Execute()
+			caseExecutor.Execute()
 			// 5. Save the report to a file
 			// 6. Print the report to the console
 			time.Sleep(time.Second * 5)
