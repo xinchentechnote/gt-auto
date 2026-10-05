@@ -2,17 +2,16 @@ package executor
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/config"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"
+	"github.com/xinchentechnote/gt-auto/pkg/validate"
 )
 
 // defaultReceiveTimeout is used when the config does not set
@@ -133,16 +132,7 @@ func (e *CaseExecutor) showResult(index int, c *testcase.TestCase) {
 		}
 		if !result.Passed {
 			log.Errorf("Show to case result: %d, %s❌", result.Index, result.StepID)
-			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"Path", "Expected", "Actual"})
-			for _, diff := range result.Detail.Diffs {
-				table.Append([]string{
-					diff.Path,
-					fmt.Sprintf("%v", diff.Expect),
-					fmt.Sprintf("%v", diff.Actual),
-				})
-			}
-			table.Render()
+			validate.RenderDiffTable(result.Detail)
 		} else {
 			log.Infof("Show to case result: %d-%s:✅", result.Index, result.StepID)
 		}

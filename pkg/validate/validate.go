@@ -60,15 +60,16 @@ func formatValue(v reflect.Value) interface{} {
 // CompareStruct compares two structs and returns a CompareResult.
 func CompareStruct(a, b interface{}) CompareResult {
 	r := &DiffReporter{}
-	cmp.Diff(a, b, cmp.Reporter(r))
+	diffInfo := cmp.Diff(a, b, cmp.Reporter(r))
 	return CompareResult{
-		Equal: len(r.diffs) == 0,
-		Diffs: r.diffs,
+		Equal:    len(r.diffs) == 0,
+		Diffs:    r.diffs,
+		DiffInfo: diffInfo,
 	}
 }
 
-// PrintCompareResult prints the comparison result in a table format.
-func PrintCompareResult(result CompareResult) {
+// RenderDiffTable prints the differences of a comparison result as a table.
+func RenderDiffTable(result CompareResult) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Path", "Expected", "Actual"})
 
@@ -79,11 +80,15 @@ func PrintCompareResult(result CompareResult) {
 			fmt.Sprintf("%v", diff.Actual),
 		})
 	}
+	table.Render()
+}
 
+// PrintCompareResult prints the comparison result in a table format.
+func PrintCompareResult(result CompareResult) {
 	if result.Equal {
 		log.Info("\n✅ Pass.")
-	} else {
-		log.Error("\n❌ Diff:")
-		table.Render()
+		return
 	}
+	log.Error("\n❌ Diff:")
+	RenderDiffTable(result)
 }

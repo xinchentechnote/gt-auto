@@ -49,6 +49,11 @@ func TestCompareStruct(t *testing.T) {
 			result := CompareStruct(tt.expect, tt.actual)
 			assert.Equal(t, tt.equal, result.Equal)
 			assert.Len(t, result.Diffs, tt.diffLen)
+			if tt.equal {
+				assert.Empty(t, result.DiffInfo)
+			} else {
+				assert.NotEmpty(t, result.DiffInfo, "DiffInfo should carry the cmp diff text")
+			}
 			PrintCompareResult(result)
 		})
 	}
