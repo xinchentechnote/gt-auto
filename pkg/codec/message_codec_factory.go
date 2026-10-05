@@ -1,16 +1,10 @@
 package codec
 
 import (
-	"errors"
-	"sync"
+	"fmt"
 )
 
-// GatewayProtocol 表示支持的网关通信协议
-type GatewayProtocol string
-
 const (
-	// UnknownProtocol 未知协议
-	UnknownProtocol GatewayProtocol = "unknown"
 	//BinaryRisk simple risk control proto
 	BinaryRisk = "binary-risk"
 	// BinarySZSE shenzhen stock exchange binary protocol
@@ -25,17 +19,13 @@ const (
 	StepSSE = "step-sse"
 )
 
-var (
-	instance MessageCodecFactory
-	once     sync.Once
-)
+// defaultMessageCodecFactory is the shared factory instance; the factory is
+// stateless, so a lazily initialized singleton would add nothing.
+var defaultMessageCodecFactory MessageCodecFactory = &DefaultMessageCodecFactory{}
 
 // GetDefaultMessageCodecFactory returns the default MessageCodecFactory instance.
 func GetDefaultMessageCodecFactory() MessageCodecFactory {
-	once.Do(func() {
-		instance = &DefaultMessageCodecFactory{}
-	})
-	return instance
+	return defaultMessageCodecFactory
 }
 
 // MessageCodecFactory is an interface for creating message codecs based on the protocol.
@@ -50,37 +40,33 @@ type DefaultMessageCodecFactory struct {
 
 // GetCodec returns a MessageCodec based on the provided protocol string.
 // It returns an error if the protocol is not supported.
-// The protocol string should be one of the constants defined in this package.
 // The supported protocols are:
+// - "binary-risk"
 // - "binary-szse"
 // - "binary-sse"
-// - "step-szse"
-// - "step-sse"
 func (f *DefaultMessageCodecFactory) GetCodec(proto string) (MessageCodec, error) {
 	switch proto {
-	case string(BinaryRisk):
+	case BinaryRisk:
 		return &BinaryRiskMessageCodec{}, nil
-	case string(BinarySZSE):
+	case BinarySZSE:
 		return &BinarySzseMessageCodec{}, nil
-	case string(BinarySSE):
+	case BinarySSE:
 		return &BinarySseMessageCodec{}, nil
 	default:
-		ErrUnsupportedProtocol := errors.New("unsupported protocol")
-		return nil, ErrUnsupportedProtocol
+		return nil, fmt.Errorf("unsupported protocol: %s", proto)
 	}
 }
 
 // GetFramer returns a Framer based on the provided protocol.
 func (f *DefaultMessageCodecFactory) GetFramer(proto string) (Framer, error) {
 	switch proto {
-	case string(BinaryRisk):
+	case BinaryRisk:
 		return &RiskBinFramer{}, nil
-	case string(BinarySZSE):
+	case BinarySZSE:
 		return &SzseBinFramer{}, nil
-	case string(BinarySSE):
+	case BinarySSE:
 		return &SseBinFramer{}, nil
 	default:
-		ErrUnsupportedProtocol := errors.New("unsupported protocol")
-		return nil, ErrUnsupportedProtocol
+		return nil, fmt.Errorf("unsupported protocol: %s", proto)
 	}
 }
