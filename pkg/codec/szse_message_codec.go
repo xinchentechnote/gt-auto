@@ -13,25 +13,25 @@ import (
 type BinarySzseMessageCodec struct{}
 
 // ProtoName implements MessageCodec.
-func (codec *BinarySzseMessageCodec) ProtoName() string {
+func (c *BinarySzseMessageCodec) ProtoName() string {
 	return BinarySZSE
 }
 
 // EncodeJSONMap implements MessageCodec.
-func (codec *BinarySzseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
+func (c *BinarySzseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
 	msgType, err := msgTypeFromMap(message)
 	if err != nil {
 		return nil, err
 	}
-	data, e := codec.JSONToStruct(message)
+	data, e := c.JSONToStruct(message)
 	if e != nil {
 		return nil, fmt.Errorf("failed to encode message: %w", e)
 	}
-	return codec.Encode(msgType, data)
+	return c.Encode(msgType, data)
 }
 
 // JSONToStruct implements MessageCodec.
-func (codec *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (codec.BinaryCodec, error) {
+func (c *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (codec.BinaryCodec, error) {
 	msgType, err := msgTypeFromMap(jsonMap)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (codec *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}
 }
 
 // Encode a message into a byte slice and prepends the message type and length.
-func (codec *BinarySzseMessageCodec) Encode(ext interface{}, message codec.BinaryCodec) ([]byte, error) {
+func (c *BinarySzseMessageCodec) Encode(ext interface{}, message codec.BinaryCodec) ([]byte, error) {
 	// 将字符串 MsgType 转换为 int32
 	msgType := ext.(uint32)
 	szseBinary := &szse_bin.SzseBinary{
@@ -80,7 +80,7 @@ func (codec *BinarySzseMessageCodec) Encode(ext interface{}, message codec.Binar
 }
 
 // Decode a byte slice into a message.
-func (codec *BinarySzseMessageCodec) Decode(data []byte) (interface{}, codec.BinaryCodec, error) {
+func (c *BinarySzseMessageCodec) Decode(data []byte) (interface{}, codec.BinaryCodec, error) {
 	var szseBinary szse_bin.SzseBinary
 	var buf bytes.Buffer
 	buf.Write(data)

@@ -13,25 +13,25 @@ import (
 type BinarySseMessageCodec struct{}
 
 // ProtoName implements MessageCodec.
-func (codec *BinarySseMessageCodec) ProtoName() string {
+func (c *BinarySseMessageCodec) ProtoName() string {
 	return BinarySSE
 }
 
 // EncodeJSONMap implements MessageCodec.
-func (codec *BinarySseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
+func (c *BinarySseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
 	msgType, err := msgTypeFromMap(message)
 	if err != nil {
 		return nil, err
 	}
-	data, e := codec.JSONToStruct(message)
+	data, e := c.JSONToStruct(message)
 	if e != nil {
 		return nil, fmt.Errorf("failed to encode message: %w", e)
 	}
-	return codec.Encode(msgType, data)
+	return c.Encode(msgType, data)
 }
 
 // JSONToStruct implements MessageCodec.
-func (codec *BinarySseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (codec.BinaryCodec, error) {
+func (c *BinarySseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (codec.BinaryCodec, error) {
 	msgType, err := msgTypeFromMap(jsonMap)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (codec *BinarySseMessageCodec) JSONToStruct(jsonMap map[string]interface{})
 }
 
 // Decode implements MessageCodec.
-func (codec *BinarySseMessageCodec) Decode(data []byte) (interface{}, codec.BinaryCodec, error) {
+func (c *BinarySseMessageCodec) Decode(data []byte) (interface{}, codec.BinaryCodec, error) {
 	var szseBinary sse_bin.SseBinary
 	var buf bytes.Buffer
 	buf.Write(data)
@@ -60,7 +60,7 @@ func (codec *BinarySseMessageCodec) Decode(data []byte) (interface{}, codec.Bina
 }
 
 // Encode implements MessageCodec.
-func (codec *BinarySseMessageCodec) Encode(ext interface{}, message codec.BinaryCodec) ([]byte, error) {
+func (c *BinarySseMessageCodec) Encode(ext interface{}, message codec.BinaryCodec) ([]byte, error) {
 	// 将字符串 MsgType 转换为 int32
 	msgType := ext.(uint32)
 	szseBinary := &sse_bin.SseBinary{
