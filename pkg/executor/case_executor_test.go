@@ -147,12 +147,12 @@ type stubSimulator struct {
 	err     error
 }
 
-func (s *stubSimulator) Start() error                                  { return nil }
-func (s *stubSimulator) Ready() bool                                   { return true }
+func (s *stubSimulator) Start() error                                             { return nil }
+func (s *stubSimulator) Ready() bool                                              { return true }
 func (s *stubSimulator) Send(msgType uint32, message fin_codec.BinaryCodec) error { return nil }
-func (s *stubSimulator) SendFromJSON(map[string]interface{}) error     { return nil }
-func (s *stubSimulator) Close() error                                  { return nil }
-func (s *stubSimulator) GetCodec() codec.MessageCodec                  { return &codec.BinaryRiskMessageCodec{} }
+func (s *stubSimulator) SendFromJSON(map[string]interface{}) error                { return nil }
+func (s *stubSimulator) Close() error                                             { return nil }
+func (s *stubSimulator) GetCodec() codec.MessageCodec                             { return &codec.BinaryRiskMessageCodec{} }
 func (s *stubSimulator) Receive(timeout time.Duration) (fin_codec.BinaryCodec, uint32, error) {
 	return s.body, s.msgType, s.err
 }

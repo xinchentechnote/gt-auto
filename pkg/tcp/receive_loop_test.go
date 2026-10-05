@@ -85,7 +85,7 @@ func TestOmsReceiveTimeout(t *testing.T) {
 	sim := &OmsSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue: make(chan receivedMessage, 16),
+		queue:  make(chan receivedMessage, 16),
 	}
 
 	start := time.Now()
@@ -104,7 +104,7 @@ func TestTgwReceiveTimeout(t *testing.T) {
 	sim := &TgwSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue: make(chan receivedMessage, 16),
+		queue:  make(chan receivedMessage, 16),
 	}
 
 	if _, _, err := sim.Receive(100 * time.Millisecond); err == nil {
@@ -119,7 +119,7 @@ func TestOmsReceiveAfterTimeout(t *testing.T) {
 	sim := &OmsSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue: make(chan receivedMessage, 16),
+		queue:  make(chan receivedMessage, 16),
 	}
 
 	if _, _, err := sim.Receive(50 * time.Millisecond); err == nil {
@@ -154,7 +154,7 @@ func TestOmsReceiveReturnsEnqueuedMessage(t *testing.T) {
 	sim := &OmsSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue: make(chan receivedMessage, 16),
+		queue:  make(chan receivedMessage, 16),
 	}
 	sim.queue <- receivedMessage{MsgType: 100101, Body: &dummyFrame{}}
 	msg, msgType, err := sim.Receive(time.Second)

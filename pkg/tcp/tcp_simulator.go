@@ -47,9 +47,9 @@ type OmsSimulator[T fin_codec.BinaryCodec] struct {
 	conn          net.Conn
 	// queue buffers decoded messages; set at construction (see
 	// CreateSimulator) and never mutated afterwards, so reads are race-free.
-	queue         chan receivedMessage
-	Codec         codec.MessageCodec
-	Framer        codec.Framer
+	queue  chan receivedMessage
+	Codec  codec.MessageCodec
+	Framer codec.Framer
 }
 
 // TgwSimulator simulates the TGW server
