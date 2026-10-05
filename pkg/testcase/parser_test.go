@@ -45,6 +45,16 @@ func TestLoadCSVToMap(t *testing.T) {
 	assert.Equal(t, "new_order_002", data["new_order_002"]["StepId"])
 }
 
+// TestLoadRiskConfirmData locks in the risk_200102.csv header fix: the third
+// column was a duplicated UniqueOrderID which silently overwrote the first.
+func TestLoadRiskConfirmData(t *testing.T) {
+	data, err := LoadCSVToMap("testdata/risk_200102.csv")
+	assert.NoError(t, err)
+	assert.Equal(t, "ORDERID00001", data["new_order_003"]["UniqueOrderID"])
+	assert.Equal(t, "CLORD0001", data["new_order_003"]["UniqueOrigOrderID"])
+	assert.Equal(t, "ORIGCLORD1", data["new_order_003"]["ClOrdID"])
+}
+
 func TestFindTestDataStepNotFound(t *testing.T) {
 	parser := &CSVCaseParser{FilePath: filepath.Join("testdata", "risk_test_case.csv")}
 	_, err := parser.findTestData("risk_100101", "no_such_step")
