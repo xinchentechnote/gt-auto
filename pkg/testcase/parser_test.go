@@ -81,6 +81,28 @@ func TestParseRejectsShortRow(t *testing.T) {
 	assert.ErrorContains(t, err, "columns")
 }
 
+// TestFindTestDataSheetIsolation verifies the same StepId in two different
+// sheets resolves to each sheet's own record instead of a cached collision.
+func TestFindTestDataSheetIsolation(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("failed to write %s: %v", name, err)
+		}
+	}
+	write("case.csv", "case_id,case_title,step_id,sleep_ms,step_desc,action_type,verify_required,test_tool,msg_type,test_data\n")
+	write("sheetA.csv", "StepId,ClOrdID\nshared,from_a\n")
+	write("sheetB.csv", "StepId,ClOrdID\nshared,from_b\n")
+
+	parser := &CSVCaseParser{FilePath: filepath.Join(dir, "case.csv")}
+	a, err := parser.findTestData("sheetA", "shared")
+	assert.NoError(t, err)
+	b, err := parser.findTestData("sheetB", "shared")
+	assert.NoError(t, err)
+	assert.Equal(t, "from_a", a["ClOrdID"])
+	assert.Equal(t, "from_b", b["ClOrdID"])
+}
+
 func TestFindTestDataStepNotFound(t *testing.T) {
 	parser := &CSVCaseParser{FilePath: filepath.Join("testdata", "risk_test_case.csv")}
 	_, err := parser.findTestData("risk_100101", "no_such_step")

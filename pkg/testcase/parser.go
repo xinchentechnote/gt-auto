@@ -13,8 +13,11 @@ import (
 
 // CSVCaseParser implements the CaseParser interface for CSV files.
 type CSVCaseParser struct {
-	FilePath      string
-	testDataCache map[string]map[string]interface{}
+	FilePath string
+	// sheetCache maps a test data sheet name to its records keyed by StepId,
+	// so each sheet file is read at most once and identical StepIds in
+	// different sheets cannot collide.
+	sheetCache map[string]map[string]map[string]interface{}
 }
 
 // testCaseColumns is the number of columns the test case CSV schema defines:
@@ -87,25 +90,20 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 }
 
 func (p *CSVCaseParser) findTestData(sheetName, stepID string) (map[string]interface{}, error) {
-	if p.testDataCache == nil {
-		p.testDataCache = make(map[string]map[string]interface{})
+	if p.sheetCache == nil {
+		p.sheetCache = make(map[string]map[string]map[string]interface{})
 	}
-	if data, ok := p.testDataCache[stepID]; ok {
-		return data, nil
+	dataFile := filepath.Join(filepath.Dir(p.FilePath), sheetName+filepath.Ext(p.FilePath))
+	if _, loaded := p.sheetCache[sheetName]; !loaded {
+		data, err := LoadCSVToMap(dataFile)
+		if err != nil {
+			return nil, err
+		}
+		p.sheetCache[sheetName] = data
 	}
-	dir := filepath.Dir(p.FilePath)
-	ext := filepath.Ext(p.FilePath)
-	data, err := LoadCSVToMap(filepath.Join(dir, sheetName+ext))
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range data {
-		p.testDataCache[k] = v
-	}
-
-	result, ok := p.testDataCache[stepID]
+	record, ok := p.sheetCache[sheetName][stepID]
 	if !ok {
-		return nil, fmt.Errorf("step %s not found in test data file %s", stepID, sheetName+ext)
+		return nil, fmt.Errorf("step %s not found in test data file %s", stepID, dataFile)
 	}
-	return result, nil
+	return record, nil
 }
