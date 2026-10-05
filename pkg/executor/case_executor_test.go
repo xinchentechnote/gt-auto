@@ -25,14 +25,14 @@ func TestReceiveTimeoutFromConfig(t *testing.T) {
 	}
 }
 
-// TestInitSimulatorStartsAllSimulators verifies all configured simulators are
+// TestInitSimulatorStartsAllSimulators verifies all auto-start simulators are
 // created and started. Run with -race: the start goroutines used to write the
 // loop's err variable, racing with the next CreateSimulator call.
 func TestInitSimulatorStartsAllSimulators(t *testing.T) {
 	conf := config.GwAutoConfig{
 		Simulators: []config.SimulatorConfig{
-			{Name: "tgw1", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0"},
-			{Name: "tgw2", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0"},
+			{Name: "tgw1", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0", AutoStart: true},
+			{Name: "tgw2", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0", AutoStart: true},
 		},
 	}
 	conf.InitConfigMap()
@@ -43,6 +43,58 @@ func TestInitSimulatorStartsAllSimulators(t *testing.T) {
 	for name, sim := range e.simulatorMap {
 		if err := sim.Close(); err != nil {
 			t.Fatalf("failed to close simulator %s: %v", name, err)
+		}
+	}
+}
+
+// TestInitSimulatorHonorsAutoStart verifies only auto_start simulators are
+// started up front; the rest start lazily on first use.
+func TestInitSimulatorHonorsAutoStart(t *testing.T) {
+	conf := config.GwAutoConfig{
+		Simulators: []config.SimulatorConfig{
+			{Name: "tgw_auto", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0", AutoStart: true},
+			{Name: "oms_lazy", Type: "oms", Protocol: "binary-risk", ServerAddress: "127.0.0.1:1", AutoStart: false},
+		},
+	}
+	conf.InitConfigMap()
+	e := NewCaseExecutor(conf, nil)
+	defer e.simulatorMap["tgw_auto"].Close()
+
+	if _, ok := e.simulatorMap["tgw_auto"]; !ok {
+		t.Fatal("auto_start simulator should be started during init")
+	}
+	if _, ok := e.simulatorMap["oms_lazy"]; ok {
+		t.Fatal("non-auto simulator should not be started during init")
+	}
+
+	sim, err := e.getOrStartSimulator("oms_lazy")
+	if err != nil {
+		t.Fatalf("lazy start failed: %v", err)
+	}
+	if sim == nil {
+		t.Fatal("lazy start returned nil simulator")
+	}
+	if err := sim.Close(); err != nil {
+		t.Fatalf("lazy simulator close failed: %v", err)
+	}
+}
+
+// TestSleepBeforeStepHonorsSleepMs verifies the step sleeps for its sleep_ms
+// value and tolerates empty or invalid values without panicking.
+func TestSleepBeforeStepHonorsSleepMs(t *testing.T) {
+	step := &testcase.TestStep{SleepMs: "50"}
+	start := time.Now()
+	sleepBeforeStep(step)
+	if elapsed := time.Since(start); elapsed < 50*time.Millisecond {
+		t.Fatalf("expected at least 50ms sleep, slept %v", elapsed)
+	}
+
+	for _, value := range []string{"", "abc", "0", "-5"} {
+		step := &testcase.TestStep{SleepMs: value}
+		start := time.Now()
+		sleepBeforeStep(step)
+		if elapsed := time.Since(start); elapsed > 20*time.Millisecond {
+			t.Fatalf("sleep_ms %q should not sleep, took %v", value, elapsed)
 		}
 	}
 }

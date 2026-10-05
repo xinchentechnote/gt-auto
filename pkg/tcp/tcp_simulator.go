@@ -30,6 +30,7 @@ type Simulator[T fin_codec.BinaryCodec] interface {
 // OmsSimulator simulates the OMS client
 type OmsSimulator[T fin_codec.BinaryCodec] struct {
 	ServerAddress string
+	connMu        sync.Mutex
 	conn          net.Conn
 	queue         *goconcurrentqueue.FIFO
 	Codec         codec.MessageCodec
@@ -57,13 +58,15 @@ func (sim *OmsSimulator[T]) GetCodec() codec.MessageCodec {
 // Start connects to the TGWServer
 func (sim *OmsSimulator[T]) Start() error {
 	sim.queue = goconcurrentqueue.NewFIFO()
-	var err error
-	sim.conn, err = net.DialTimeout("tcp", sim.ServerAddress, 5*time.Second)
+	conn, err := net.DialTimeout("tcp", sim.ServerAddress, 5*time.Second)
 	if err != nil {
 		log.Printf("failed to connect to server: %s", err)
 		return fmt.Errorf("failed to connect to server: %w", err)
 
 	}
+	sim.connMu.Lock()
+	sim.conn = conn
+	sim.connMu.Unlock()
 	log.Printf("Connected to TGW server at %s", sim.ServerAddress)
 	go sim.receiveLoop()
 	return nil
@@ -79,6 +82,11 @@ func (sim *OmsSimulator[T]) Send(ext interface{}, message fin_codec.BinaryCodec)
 }
 
 func (sim *OmsSimulator[T]) sendByte(message []byte) error {
+	sim.connMu.Lock()
+	defer sim.connMu.Unlock()
+	if sim.conn == nil {
+		return fmt.Errorf("no connection established")
+	}
 	_, err := sim.conn.Write(message)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
@@ -140,10 +148,13 @@ func (sim *OmsSimulator[T]) receive0() error {
 // Close closes the OMSClient connection. Closing the connection also stops
 // the receive loop. It is safe to call before Start.
 func (sim *OmsSimulator[T]) Close() error {
-	if sim.conn == nil {
+	sim.connMu.Lock()
+	conn := sim.conn
+	sim.connMu.Unlock()
+	if conn == nil {
 		return nil
 	}
-	return sim.conn.Close()
+	return conn.Close()
 }
 
 // GetCodec returns the message codec used by the simulator

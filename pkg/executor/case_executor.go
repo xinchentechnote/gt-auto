@@ -3,6 +3,8 @@ package executor
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
@@ -43,12 +45,15 @@ func NewCaseExecutor(config config.GwAutoConfig, cases []*testcase.TestCase) *Ca
 
 func (e *CaseExecutor) initSimulator() {
 	for _, config := range e.Config.Simulators {
+		if !config.AutoStart {
+			// Started lazily on first use, see getOrStartSimulator.
+			continue
+		}
 		simulator, err := tcp.CreateSimulator[codec.BinaryCodec](config)
 		if nil != err {
 			log.Errorf("Failed to create simulator %s: %v", config.Name, err)
 			continue
 		}
-		time.Sleep(1000 * time.Millisecond)
 		go func() {
 			if startErr := simulator.Start(); startErr != nil {
 				log.Errorf("Failed to start simulator %s: %v", config.Name, startErr)
@@ -56,6 +61,7 @@ func (e *CaseExecutor) initSimulator() {
 		}()
 		e.simulatorMap[config.Name] = simulator
 	}
+	// Give auto-started simulators time to bind their listeners.
 	time.Sleep(1000 * time.Millisecond)
 }
 
@@ -114,7 +120,7 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 		c.AddStepError(index, step.StepID, err)
 		return
 	}
-	time.Sleep(1000 * time.Millisecond)
+	sleepBeforeStep(step)
 	switch step.ActionType {
 	case "Send":
 		step.TestDatas["MsgType"] = step.MsgType
@@ -175,5 +181,17 @@ func (e *CaseExecutor) getOrStartSimulator(testTool string) (tcp.Simulator[codec
 		}
 	}()
 	e.simulatorMap[testTool] = simulator
+	// Give the start goroutine time to bind the listener or dial.
+	time.Sleep(1000 * time.Millisecond)
 	return simulator, nil
+}
+
+// sleepBeforeStep honors the step's sleep_ms column, delaying execution of
+// the step. Empty or invalid values mean no delay.
+func sleepBeforeStep(step *testcase.TestStep) {
+	ms, err := strconv.Atoi(strings.TrimSpace(step.SleepMs))
+	if err != nil || ms <= 0 {
+		return
+	}
+	time.Sleep(time.Duration(ms) * time.Millisecond)
 }
