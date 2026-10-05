@@ -110,7 +110,7 @@ func (sim *OmsSimulator[T]) receive0() error {
 	}
 	_, msg, e := sim.Codec.Decode(data)
 	if e != nil {
-		return fmt.Errorf("failed to decode message: %w", err)
+		return fmt.Errorf("failed to decode message: %w", e)
 	}
 	log.Printf("Received message: %+v", msg)
 	e1 := sim.queue.Enqueue(msg)

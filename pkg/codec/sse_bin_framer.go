@@ -27,7 +27,7 @@ func (r *SseBinFramer) ReadFrame(conn net.Conn) ([]byte, error) {
 	body := make([]byte, bodyLen)
 	_, er := io.ReadFull(conn, body)
 	if er != nil {
-		return nil, fmt.Errorf("failed to receive message: %w", err)
+		return nil, fmt.Errorf("failed to receive message: %w", er)
 	}
 	return append(head, body...), nil
 }
