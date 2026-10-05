@@ -1,7 +1,9 @@
 package tcp
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"time"
@@ -57,13 +59,7 @@ func (sim *OmsSimulator[T]) Start() error {
 
 	}
 	log.Printf("Connected to TGW server at %s", sim.ServerAddress)
-	go func() {
-		for {
-			if err := sim.receive0(); err != nil {
-				log.Printf("receive0 error: %v", err)
-			}
-		}
-	}()
+	go sim.receiveLoop()
 	return nil
 }
 
@@ -100,6 +96,25 @@ func (sim *OmsSimulator[T]) Receive() (T, error) {
 		return zero, fmt.Errorf("error dequeuing message: %w", err)
 	}
 	return msg.(T), nil
+}
+
+// receiveLoop reads frames from the connection until it is closed or the peer
+// disconnects. Per-message decode failures are logged and skipped, as the
+// framer already consumed the frame and the stream stays aligned.
+func (sim *OmsSimulator[T]) receiveLoop() {
+	for {
+		err := sim.receive0()
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, io.EOF) ||
+			errors.Is(err, io.ErrUnexpectedEOF) ||
+			errors.Is(err, net.ErrClosed) {
+			log.Printf("receive loop stopped: %v", err)
+			return
+		}
+		log.Printf("receive0 error: %v", err)
+	}
 }
 
 // Receive waits for a response from the server
@@ -170,8 +185,10 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 	for {
 		data, err := sim.Framer.ReadFrame(conn)
 		if err != nil {
-			log.Printf("Error decoding message: %v", err)
-			continue
+			// A framing error means the peer disconnected or the stream is
+			// desynchronized; stop reading instead of busy-looping.
+			log.Printf("client %s disconnected: %v", conn.RemoteAddr(), err)
+			return
 		}
 		_, msg, e := sim.Codec.Decode(data)
 		if e != nil {
