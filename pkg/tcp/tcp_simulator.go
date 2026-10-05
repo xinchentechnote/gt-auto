@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,10 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/enriquebris/goconcurrentqueue"
 	fin_codec "github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/codec"
 )
+
+// receiveQueueCapacity bounds how many received messages are buffered while
+// a consumer is between Receive calls.
+const receiveQueueCapacity = 1024
 
 // receivedMessage couples a decoded body with its wire message type so
 // consumers can verify they received the message they expected.
@@ -43,7 +45,7 @@ type OmsSimulator[T fin_codec.BinaryCodec] struct {
 	ServerAddress string
 	connMu        sync.Mutex
 	conn          net.Conn
-	queue         *goconcurrentqueue.FIFO
+	queue         chan receivedMessage
 	Codec         codec.MessageCodec
 	Framer        codec.Framer
 }
@@ -57,7 +59,7 @@ type TgwSimulator[T fin_codec.BinaryCodec] struct {
 	connMu        sync.Mutex
 	// conn is the most recently accepted client connection, used by Send.
 	conn   net.Conn
-	queue  *goconcurrentqueue.FIFO
+	queue  chan receivedMessage
 	Codec  codec.MessageCodec
 	Framer codec.Framer
 }
@@ -75,7 +77,7 @@ func (sim *OmsSimulator[T]) Ready() bool {
 
 // Start connects to the TGWServer
 func (sim *OmsSimulator[T]) Start() error {
-	sim.queue = goconcurrentqueue.NewFIFO()
+	sim.queue = make(chan receivedMessage, receiveQueueCapacity)
 	conn, err := net.DialTimeout("tcp", sim.ServerAddress, 5*time.Second)
 	if err != nil {
 		log.Printf("failed to connect to server: %s", err)
@@ -159,10 +161,7 @@ func (sim *OmsSimulator[T]) receive0() error {
 		return fmt.Errorf("unexpected msg type %T from codec decode", msgTypeRaw)
 	}
 	log.Printf("Received message type %d: %+v", msgType, msg)
-	e1 := sim.queue.Enqueue(receivedMessage{MsgType: msgType, Body: msg})
-	if e1 != nil {
-		return fmt.Errorf("failed to enqueue message: %w", e1)
-	}
+	sim.queue <- receivedMessage{MsgType: msgType, Body: msg}
 
 	return nil
 }
@@ -202,7 +201,7 @@ func (sim *TgwSimulator[T]) Start() error {
 	sim.stopChan = make(chan struct{})
 	sim.stopMu.Unlock()
 	log.Printf("TGW server started on %s", sim.ListenAddress)
-	sim.queue = goconcurrentqueue.NewFIFO()
+	sim.queue = make(chan receivedMessage, receiveQueueCapacity)
 	go func() {
 		<-sim.stopChan
 		listener.Close()
@@ -250,11 +249,7 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 			continue
 		}
 		log.Printf("Received message type %d: %+v", msgType, msg)
-		e1 := sim.queue.Enqueue(receivedMessage{MsgType: msgType, Body: msg})
-		if e1 != nil {
-			log.Printf("Error enqueuing message: %v", e1)
-			continue
-		}
+		sim.queue <- receivedMessage{MsgType: msgType, Body: msg}
 	}
 }
 
@@ -293,25 +288,25 @@ func (sim *TgwSimulator[T]) Receive(timeout time.Duration) (T, uint32, error) {
 	return dequeueWithContext[T](sim.queue, timeout)
 }
 
-// dequeueWithContext dequeues the next message, waiting at most timeout
+// dequeueWithContext receives the next message, waiting at most timeout
 // before giving up so callers cannot block forever on a silent peer.
-func dequeueWithContext[T fin_codec.BinaryCodec](queue *goconcurrentqueue.FIFO, timeout time.Duration) (T, uint32, error) {
+func dequeueWithContext[T fin_codec.BinaryCodec](queue <-chan receivedMessage, timeout time.Duration) (T, uint32, error) {
 	var zero T
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	item, err := queue.DequeueOrWaitForNextElementContext(ctx)
-	if err != nil {
-		return zero, 0, fmt.Errorf("no message received within %s: %w", timeout, err)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case received, ok := <-queue:
+		if !ok {
+			return zero, 0, fmt.Errorf("receive queue is closed")
+		}
+		body, ok := received.Body.(T)
+		if !ok {
+			return zero, received.MsgType, fmt.Errorf("unexpected message body type %T", received.Body)
+		}
+		return body, received.MsgType, nil
+	case <-timer.C:
+		return zero, 0, fmt.Errorf("no message received within %s", timeout)
 	}
-	received, ok := item.(receivedMessage)
-	if !ok {
-		return zero, 0, fmt.Errorf("unexpected item type %T in queue", item)
-	}
-	body, ok := received.Body.(T)
-	if !ok {
-		return zero, received.MsgType, fmt.Errorf("unexpected message body type %T", received.Body)
-	}
-	return body, received.MsgType, nil
 }
 
 // Close shuts down the TGWServer and drops the accepted client connection.

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/enriquebris/goconcurrentqueue"
 	fin_codec "github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/codec"
 )
@@ -77,7 +76,7 @@ func TestOmsReceiveTimeout(t *testing.T) {
 	sim := &OmsSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue:  goconcurrentqueue.NewFIFO(),
+		queue: make(chan receivedMessage, 16),
 	}
 
 	start := time.Now()
@@ -96,7 +95,7 @@ func TestTgwReceiveTimeout(t *testing.T) {
 	sim := &TgwSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue:  goconcurrentqueue.NewFIFO(),
+		queue: make(chan receivedMessage, 16),
 	}
 
 	if _, _, err := sim.Receive(100 * time.Millisecond); err == nil {
@@ -111,7 +110,7 @@ func TestOmsReceiveAfterTimeout(t *testing.T) {
 	sim := &OmsSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue:  goconcurrentqueue.NewFIFO(),
+		queue: make(chan receivedMessage, 16),
 	}
 
 	if _, _, err := sim.Receive(50 * time.Millisecond); err == nil {
@@ -119,7 +118,7 @@ func TestOmsReceiveAfterTimeout(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		sim.queue.Enqueue(receivedMessage{MsgType: 1, Body: &dummyFrame{}})
+		sim.queue <- receivedMessage{MsgType: 1, Body: &dummyFrame{}}
 		close(done)
 	}()
 	select {
@@ -146,11 +145,9 @@ func TestOmsReceiveReturnsEnqueuedMessage(t *testing.T) {
 	sim := &OmsSimulator[fin_codec.BinaryCodec]{
 		Codec:  riskCodec,
 		Framer: framer,
-		queue:  goconcurrentqueue.NewFIFO(),
+		queue: make(chan receivedMessage, 16),
 	}
-	if err := sim.queue.Enqueue(receivedMessage{MsgType: 100101, Body: &dummyFrame{}}); err != nil {
-		t.Fatalf("Enqueue failed: %v", err)
-	}
+	sim.queue <- receivedMessage{MsgType: 100101, Body: &dummyFrame{}}
 	msg, msgType, err := sim.Receive(time.Second)
 	if err != nil {
 		t.Fatalf("Receive failed: %v", err)
