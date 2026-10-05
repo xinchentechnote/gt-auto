@@ -1,12 +1,15 @@
 package executor
 
 import (
+	"fmt"
 	"net"
 	"strings"
 	"testing"
 	"time"
 
+	risk_bin "github.com/xinchentechnote/fin-proto-risk-bin-go/messages"
 	fin_codec "github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
+	"github.com/xinchentechnote/gt-auto/pkg/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/config"
 	"github.com/xinchentechnote/gt-auto/pkg/tcp"
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"
@@ -133,6 +136,86 @@ func TestSummarizeCountsResults(t *testing.T) {
 	if summary.TotalCases != 2 || summary.TotalSteps != 3 ||
 		summary.PassedSteps != 2 || summary.FailedSteps != 1 {
 		t.Fatalf("unexpected summary: %+v", summary)
+	}
+}
+
+// stubSimulator is a controllable Simulator used to exercise the executor's
+// Receive-step logic without a network.
+type stubSimulator struct {
+	msgType uint32
+	body    fin_codec.BinaryCodec
+	err     error
+}
+
+func (s *stubSimulator) Start() error                                  { return nil }
+func (s *stubSimulator) Ready() bool                                   { return true }
+func (s *stubSimulator) Send(interface{}, fin_codec.BinaryCodec) error { return nil }
+func (s *stubSimulator) SendFromJSON(map[string]interface{}) error     { return nil }
+func (s *stubSimulator) Close() error                                  { return nil }
+func (s *stubSimulator) GetCodec() codec.MessageCodec                  { return &codec.BinaryRiskMessageCodec{} }
+func (s *stubSimulator) Receive(timeout time.Duration) (fin_codec.BinaryCodec, uint32, error) {
+	return s.body, s.msgType, s.err
+}
+
+// TestExecuteStepValidatesReceivedMsgType verifies a Receive step fails with
+// a clear error when the wire message type differs from the expected one.
+func TestExecuteStepValidatesReceivedMsgType(t *testing.T) {
+	tests := []struct {
+		name       string
+		sim        *stubSimulator
+		wantErr    string
+		wantPassed bool
+	}{
+		{
+			name:       "matching type validates",
+			sim:        &stubSimulator{msgType: 200102, body: &risk_bin.OrderConfirm{}},
+			wantPassed: true,
+		},
+		{
+			name:    "mismatched type fails",
+			sim:     &stubSimulator{msgType: 999999, body: &risk_bin.OrderConfirm{}},
+			wantErr: "received MsgType 999999, expected 200102",
+		},
+		{
+			name:    "receive timeout fails",
+			sim:     &stubSimulator{err: fmt.Errorf("no message received within 1s")},
+			wantErr: "receive failed",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &CaseExecutor{receiveTimeout: time.Second}
+			c := &testcase.TestCase{
+				CaseID: "c1",
+				Steps: []testcase.TestStep{{
+					StepID:         "s1",
+					TestTool:       "tool",
+					ActionType:     "Receive",
+					MsgType:        "200102",
+					VerifyRequired: true,
+					TestDatas:      map[string]any{"StepId": "s1"},
+				}},
+			}
+			e.simulatorMap = map[string]tcp.Simulator[fin_codec.BinaryCodec]{"tool": tt.sim}
+			e.executeStep(0, c, &c.Steps[0])
+
+			if len(c.ValidateResults) != 1 {
+				t.Fatalf("expected 1 validate result, got %d", len(c.ValidateResults))
+			}
+			result := c.ValidateResults[0]
+			if tt.wantPassed {
+				if !result.Passed {
+					t.Fatalf("expected step to pass, got error: %s", result.Error)
+				}
+				return
+			}
+			if result.Passed {
+				t.Fatal("expected step to fail")
+			}
+			if !strings.Contains(result.Error, tt.wantErr) {
+				t.Fatalf("expected error containing %q, got: %s", tt.wantErr, result.Error)
+			}
+		})
 	}
 }
 

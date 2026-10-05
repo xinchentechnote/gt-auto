@@ -173,11 +173,22 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 			return
 		}
 		step.SetExpect(expect)
-		actual, err := simulator.Receive(e.receiveTimeout)
+		actual, actualMsgType, err := simulator.Receive(e.receiveTimeout)
 		if err != nil {
 			//TODO
 			log.Error("Receive failed: ", err)
 			c.AddStepError(index, step.StepID, fmt.Errorf("receive failed: %w", err))
+			return
+		}
+		expectedMsgType, err := strconv.ParseUint(strings.TrimSpace(step.MsgType), 10, 32)
+		if err != nil {
+			c.AddStepError(index, step.StepID, fmt.Errorf("invalid MsgType %q in step", step.MsgType))
+			return
+		}
+		if actualMsgType != uint32(expectedMsgType) {
+			log.Errorf("Received MsgType %d, expected %d", actualMsgType, expectedMsgType)
+			c.AddStepError(index, step.StepID,
+				fmt.Errorf("received MsgType %d, expected %d", actualMsgType, expectedMsgType))
 			return
 		}
 		if step.VerifyRequired {

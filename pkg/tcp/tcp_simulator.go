@@ -15,6 +15,13 @@ import (
 	"github.com/xinchentechnote/gt-auto/pkg/codec"
 )
 
+// receivedMessage couples a decoded body with its wire message type so
+// consumers can verify they received the message they expected.
+type receivedMessage struct {
+	MsgType uint32
+	Body    fin_codec.BinaryCodec
+}
+
 // Simulator interface defines the methods for both OMS and TGW simulators
 type Simulator[T fin_codec.BinaryCodec] interface {
 	Start() error
@@ -24,8 +31,9 @@ type Simulator[T fin_codec.BinaryCodec] interface {
 	Send(interface{}, fin_codec.BinaryCodec) error
 	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
 	SendFromJSON(message map[string]interface{}) error
-	// Receive waits up to timeout for the next message from the queue.
-	Receive(timeout time.Duration) (T, error)
+	// Receive waits up to timeout for the next message and reports its wire
+	// message type.
+	Receive(timeout time.Duration) (T, uint32, error)
 	GetCodec() codec.MessageCodec
 	Close() error
 }
@@ -113,7 +121,7 @@ func (sim *OmsSimulator[T]) SendFromJSON(message map[string]interface{}) error {
 }
 
 // Receive waits up to timeout for the next message from the server.
-func (sim *OmsSimulator[T]) Receive(timeout time.Duration) (T, error) {
+func (sim *OmsSimulator[T]) Receive(timeout time.Duration) (T, uint32, error) {
 	return dequeueWithContext[T](sim.queue, timeout)
 }
 
@@ -142,12 +150,16 @@ func (sim *OmsSimulator[T]) receive0() error {
 	if err != nil {
 		return fmt.Errorf("failed to receive message: %w", err)
 	}
-	_, msg, e := sim.Codec.Decode(data)
+	msgTypeRaw, msg, e := sim.Codec.Decode(data)
 	if e != nil {
 		return fmt.Errorf("failed to decode message: %w", e)
 	}
-	log.Printf("Received message: %+v", msg)
-	e1 := sim.queue.Enqueue(msg)
+	msgType, ok := msgTypeRaw.(uint32)
+	if !ok {
+		return fmt.Errorf("unexpected msg type %T from codec decode", msgTypeRaw)
+	}
+	log.Printf("Received message type %d: %+v", msgType, msg)
+	e1 := sim.queue.Enqueue(receivedMessage{MsgType: msgType, Body: msg})
 	if e1 != nil {
 		return fmt.Errorf("failed to enqueue message: %w", e1)
 	}
@@ -227,13 +239,18 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 			log.Printf("client %s disconnected: %v", conn.RemoteAddr(), err)
 			return
 		}
-		_, msg, e := sim.Codec.Decode(data)
+		msgTypeRaw, msg, e := sim.Codec.Decode(data)
 		if e != nil {
 			log.Printf("Error decoding message: %v", e)
 			continue
 		}
-		log.Printf("Received message: %+v", msg)
-		e1 := sim.queue.Enqueue(msg)
+		msgType, ok := msgTypeRaw.(uint32)
+		if !ok {
+			log.Printf("Unexpected msg type %T from codec decode", msgTypeRaw)
+			continue
+		}
+		log.Printf("Received message type %d: %+v", msgType, msg)
+		e1 := sim.queue.Enqueue(receivedMessage{MsgType: msgType, Body: msg})
 		if e1 != nil {
 			log.Printf("Error enqueuing message: %v", e1)
 			continue
@@ -272,25 +289,29 @@ func (sim *TgwSimulator[T]) SendFromJSON(message map[string]interface{}) error {
 }
 
 // Receive waits up to timeout for the next message from the queue.
-func (sim *TgwSimulator[T]) Receive(timeout time.Duration) (T, error) {
+func (sim *TgwSimulator[T]) Receive(timeout time.Duration) (T, uint32, error) {
 	return dequeueWithContext[T](sim.queue, timeout)
 }
 
 // dequeueWithContext dequeues the next message, waiting at most timeout
 // before giving up so callers cannot block forever on a silent peer.
-func dequeueWithContext[T fin_codec.BinaryCodec](queue *goconcurrentqueue.FIFO, timeout time.Duration) (T, error) {
+func dequeueWithContext[T fin_codec.BinaryCodec](queue *goconcurrentqueue.FIFO, timeout time.Duration) (T, uint32, error) {
 	var zero T
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	item, err := queue.DequeueOrWaitForNextElementContext(ctx)
 	if err != nil {
-		return zero, fmt.Errorf("no message received within %s: %w", timeout, err)
+		return zero, 0, fmt.Errorf("no message received within %s: %w", timeout, err)
 	}
-	msg, ok := item.(T)
+	received, ok := item.(receivedMessage)
 	if !ok {
-		return zero, fmt.Errorf("unexpected message type %T in queue", item)
+		return zero, 0, fmt.Errorf("unexpected item type %T in queue", item)
 	}
-	return msg, nil
+	body, ok := received.Body.(T)
+	if !ok {
+		return zero, received.MsgType, fmt.Errorf("unexpected message body type %T", received.Body)
+	}
+	return body, received.MsgType, nil
 }
 
 // Close shuts down the TGWServer and drops the accepted client connection.

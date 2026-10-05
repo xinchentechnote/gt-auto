@@ -81,11 +81,10 @@ func TestOmsReceiveTimeout(t *testing.T) {
 	}
 
 	start := time.Now()
-	_, err := sim.Receive(100 * time.Millisecond)
-	elapsed := time.Since(start)
-	if err == nil {
+	if _, _, err := sim.Receive(100 * time.Millisecond); err == nil {
 		t.Fatal("expected timeout error, got nil")
 	}
+	elapsed := time.Since(start)
 	if elapsed > time.Second {
 		t.Fatalf("Receive blocked for %v, expected ~100ms", elapsed)
 	}
@@ -100,7 +99,7 @@ func TestTgwReceiveTimeout(t *testing.T) {
 		queue:  goconcurrentqueue.NewFIFO(),
 	}
 
-	if _, err := sim.Receive(100 * time.Millisecond); err == nil {
+	if _, _, err := sim.Receive(100 * time.Millisecond); err == nil {
 		t.Fatal("expected timeout error, got nil")
 	}
 }
@@ -115,12 +114,12 @@ func TestOmsReceiveAfterTimeout(t *testing.T) {
 		queue:  goconcurrentqueue.NewFIFO(),
 	}
 
-	if _, err := sim.Receive(50 * time.Millisecond); err == nil {
+	if _, _, err := sim.Receive(50 * time.Millisecond); err == nil {
 		t.Fatal("expected timeout error, got nil")
 	}
 	done := make(chan struct{})
 	go func() {
-		sim.queue.Enqueue(&dummyFrame{})
+		sim.queue.Enqueue(receivedMessage{MsgType: 1, Body: &dummyFrame{}})
 		close(done)
 	}()
 	select {
@@ -128,9 +127,12 @@ func TestOmsReceiveAfterTimeout(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Enqueue blocked after a timed-out Receive")
 	}
-	msg, err := sim.Receive(time.Second)
+	msg, msgType, err := sim.Receive(time.Second)
 	if err != nil {
 		t.Fatalf("Receive after timeout failed: %v", err)
+	}
+	if msgType != 1 {
+		t.Fatalf("expected msg type 1, got %d", msgType)
 	}
 	if _, ok := msg.(*dummyFrame); !ok {
 		t.Fatalf("unexpected message type %T", msg)
@@ -138,7 +140,7 @@ func TestOmsReceiveAfterTimeout(t *testing.T) {
 }
 
 // TestOmsReceiveReturnsEnqueuedMessage verifies Receive hands back the queued
-// message when one is available.
+// message and its wire type when one is available.
 func TestOmsReceiveReturnsEnqueuedMessage(t *testing.T) {
 	riskCodec, framer := newTestSimulatorCodec()
 	sim := &OmsSimulator[fin_codec.BinaryCodec]{
@@ -146,12 +148,15 @@ func TestOmsReceiveReturnsEnqueuedMessage(t *testing.T) {
 		Framer: framer,
 		queue:  goconcurrentqueue.NewFIFO(),
 	}
-	if err := sim.queue.Enqueue(&dummyFrame{}); err != nil {
+	if err := sim.queue.Enqueue(receivedMessage{MsgType: 100101, Body: &dummyFrame{}}); err != nil {
 		t.Fatalf("Enqueue failed: %v", err)
 	}
-	msg, err := sim.Receive(time.Second)
+	msg, msgType, err := sim.Receive(time.Second)
 	if err != nil {
 		t.Fatalf("Receive failed: %v", err)
+	}
+	if msgType != 100101 {
+		t.Fatalf("expected msg type 100101, got %d", msgType)
 	}
 	if _, ok := msg.(*dummyFrame); !ok {
 		t.Fatalf("unexpected message type %T", msg)
