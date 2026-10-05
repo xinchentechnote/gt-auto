@@ -99,6 +99,32 @@ func TestSleepBeforeStepHonorsSleepMs(t *testing.T) {
 	}
 }
 
+// TestSummarizeCountsResults verifies the run summary aggregates recorded
+// step results across cases.
+func TestSummarizeCountsResults(t *testing.T) {
+	e := &CaseExecutor{receiveTimeout: time.Second}
+	e.Cases = []*testcase.TestCase{
+		{
+			CaseID: "c1",
+			ValidateResults: []testcase.StepValidateResult{
+				{StepID: "s1", Passed: true},
+				{StepID: "s2", Passed: false, Error: "boom"},
+			},
+		},
+		{
+			CaseID: "c2",
+			ValidateResults: []testcase.StepValidateResult{
+				{StepID: "s3", Passed: true},
+			},
+		},
+	}
+	summary := e.summarize()
+	if summary.TotalCases != 2 || summary.TotalSteps != 3 ||
+		summary.PassedSteps != 2 || summary.FailedSteps != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+}
+
 // TestExecuteStepRecordsUnavailableSimulator verifies a step whose test tool
 // cannot be created is recorded as a failed result instead of being skipped.
 func TestExecuteStepRecordsUnavailableSimulator(t *testing.T) {

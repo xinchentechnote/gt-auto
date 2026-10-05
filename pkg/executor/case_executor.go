@@ -65,11 +65,19 @@ func (e *CaseExecutor) initSimulator() {
 	time.Sleep(1000 * time.Millisecond)
 }
 
-// Execute runs the test cases.
-func (e *CaseExecutor) Execute() {
+// RunSummary aggregates the outcome of a full test run.
+type RunSummary struct {
+	TotalCases  int
+	TotalSteps  int // steps with a recorded result
+	PassedSteps int
+	FailedSteps int
+}
+
+// Execute runs the test cases and returns a run summary.
+func (e *CaseExecutor) Execute() RunSummary {
 	time.Sleep(5 * time.Second)
 	if e.Cases == nil {
-		return
+		return RunSummary{}
 	}
 	for i, c := range e.Cases {
 		e.executeCase(i, c)
@@ -78,6 +86,23 @@ func (e *CaseExecutor) Execute() {
 	for i, c := range e.Cases {
 		e.showResult(i, c)
 	}
+	return e.summarize()
+}
+
+// summarize aggregates the recorded validation results across all cases.
+func (e *CaseExecutor) summarize() RunSummary {
+	summary := RunSummary{TotalCases: len(e.Cases)}
+	for _, c := range e.Cases {
+		for _, result := range c.ValidateResults {
+			summary.TotalSteps++
+			if result.Passed {
+				summary.PassedSteps++
+			} else {
+				summary.FailedSteps++
+			}
+		}
+	}
+	return summary
 }
 
 func (e *CaseExecutor) showResult(index int, c *testcase.TestCase) {

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -29,9 +28,8 @@ func main() {
 	})
 	log.SetReportCaller(true)
 	log.SetLevel(log.InfoLevel)
-	log.SetReportCaller(true)
 	app := &cli.App{
-		Name:  "gw-auto",
+		Name:  "gt-auto",
 		Usage: "CLI tool for gateway automation testing",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -45,35 +43,33 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			// 1.Parse test cases from the provided file
 			casePath := c.String("casePath")
 			log.Info("Running test from: \n", casePath)
 			cases, err := testcase.LoadTestCases(casePath)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to load test cases: %w", err)
 			}
 			configPath := c.String("config")
 			log.Info("Using config from: \n", configPath)
-			// 2. Create a simulators based on the configuration
 			gwAutoConfig, err := config.ParseConfig(configPath)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to parse config: %w", err)
 			}
 			gwAutoConfig.InitConfigMap()
-			// 3. Execute the test cases
+
 			caseExecutor := executor.NewCaseExecutor(*gwAutoConfig, cases)
-			// 4. Collect the results,validate and generate a report
-			caseExecutor.Execute()
-			// 5. Save the report to a file
-			// 6. Print the report to the console
-			time.Sleep(time.Second * 5)
+			summary := caseExecutor.Execute()
+			log.Infof("Run summary: %d case(s), %d step(s): %d passed, %d failed",
+				summary.TotalCases, summary.TotalSteps, summary.PassedSteps, summary.FailedSteps)
+			if summary.FailedSteps > 0 {
+				return cli.Exit(fmt.Sprintf("%d step(s) failed", summary.FailedSteps), 1)
+			}
 			return nil
 		},
 	}
 
-	err := app.Run(os.Args)
-	if err != nil {
+	if err := app.Run(os.Args); err != nil {
 		log.Error(err)
+		os.Exit(1)
 	}
-
 }
