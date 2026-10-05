@@ -3,7 +3,6 @@ package codec
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	risk_bin "github.com/xinchentechnote/fin-proto-risk-bin-go/messages"
 	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
@@ -48,24 +47,24 @@ func (b *BinaryRiskMessageCodec) Encode(ext interface{}, message codec.BinaryCod
 
 // EncodeJSONMap implements MessageCodec.
 func (b *BinaryRiskMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
-	msgType, err := strconv.Atoi(message["MsgType"].(string))
+	msgType, err := msgTypeFromMap(message)
 	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", message["MsgType"].(string))
+		return nil, err
 	}
 	data, e := b.JSONToStruct(message)
 	if e != nil {
 		return nil, fmt.Errorf("failed to encode message: %w", e)
 	}
-	return b.Encode(uint32(msgType), data)
+	return b.Encode(msgType, data)
 }
 
 // JSONToStruct implements MessageCodec.
 func (b *BinaryRiskMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (codec.BinaryCodec, error) {
-	msgType, err := strconv.Atoi(jsonMap["MsgType"].(string))
+	msgType, err := msgTypeFromMap(jsonMap)
 	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
+		return nil, err
 	}
-	message, err := risk_bin.NewRcBinaryMessageByMsgType(uint32(msgType))
+	message, err := risk_bin.NewRcBinaryMessageByMsgType(msgType)
 	if err != nil {
 		return nil, err
 	}

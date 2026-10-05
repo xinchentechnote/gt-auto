@@ -2,6 +2,7 @@ package testcase
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"os"
 )
@@ -44,7 +45,11 @@ func LoadCSVToMap(filePath string) (map[string]map[string]interface{}, error) {
 			record[header] = value
 			// }
 		}
-		records[record["StepId"].(string)] = record
+		stepID, ok := record["StepId"].(string)
+		if !ok {
+			return nil, fmt.Errorf("CSV file %s has no StepId column", filePath)
+		}
+		records[stepID] = record
 	}
 
 	return records, nil

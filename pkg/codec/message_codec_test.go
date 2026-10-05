@@ -51,3 +51,43 @@ func TestRiskMessageCodec_ConvertMapToStruct(t *testing.T) {
 	}
 	assert.Equal(t, "1", msg.UniqueOrderId)
 }
+
+// TestCodecInvalidMsgTypeReturnsError verifies malformed MsgType values yield
+// errors instead of panics across all codecs.
+func TestCodecInvalidMsgTypeReturnsError(t *testing.T) {
+	codecs := map[string]MessageCodec{
+		"risk": &BinaryRiskMessageCodec{},
+		"szse": &BinarySzseMessageCodec{},
+		"sse":  &BinarySseMessageCodec{},
+	}
+	inputs := []struct {
+		name    string
+		message map[string]interface{}
+		wantErr string
+	}{
+		{"missing", map[string]interface{}{"ClOrdID": "1"}, "missing MsgType"},
+		{"non-string", map[string]interface{}{"MsgType": 123}, "must be a string"},
+		{"non-numeric", map[string]interface{}{"MsgType": "abc"}, "invalid MsgType"},
+	}
+	for cname, c := range codecs {
+		for _, in := range inputs {
+			t.Run(cname+"/"+in.name, func(t *testing.T) {
+				_, err := c.EncodeJSONMap(in.message)
+				assert.ErrorContains(t, err, in.wantErr)
+				_, err = c.JSONToStruct(in.message)
+				assert.ErrorContains(t, err, in.wantErr)
+			})
+		}
+	}
+}
+
+// TestSzseCodecNewOrderWithoutApplID verifies a NewOrder map without ApplID
+// does not panic; the ApplExtend extension is simply skipped.
+func TestSzseCodecNewOrderWithoutApplID(t *testing.T) {
+	codec := &BinarySzseMessageCodec{}
+	_, err := codec.JSONToStruct(map[string]interface{}{
+		"MsgType": "100101",
+		"ClOrdID": "c0001",
+	})
+	assert.NoError(t, err)
+}

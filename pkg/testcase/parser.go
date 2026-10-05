@@ -17,6 +17,11 @@ type CSVCaseParser struct {
 	testDataCache map[string]map[string]interface{}
 }
 
+// testCaseColumns is the number of columns the test case CSV schema defines:
+// case_id, case_title, step_id, sleep_ms, step_desc, action_type,
+// verify_required, test_tool, msg_type, test_data.
+const testCaseColumns = 10
+
 // Parse parses CSV data and returns test cases.
 func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 	file, err := os.Open(p.FilePath)
@@ -41,6 +46,9 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 		}
 		if err != nil {
 			return nil, err
+		}
+		if len(record) < testCaseColumns {
+			return nil, fmt.Errorf("invalid row (got %d columns, expected %d): %v", len(record), testCaseColumns, record)
 		}
 
 		if strings.TrimSpace(record[0]) != "" {

@@ -13,6 +13,26 @@ import (
 // ErrInvalidPacket is returned when a packet is invalid.
 var ErrInvalidPacket = errors.New("invalid packet")
 
+// msgTypeFromMap extracts the MsgType field from a JSON-like message map and
+// converts it to the numeric message type used by the binary protocols.
+// It reports a descriptive error instead of panicking on missing or
+// mistyped fields.
+func msgTypeFromMap(message map[string]interface{}) (uint32, error) {
+	raw, ok := message["MsgType"]
+	if !ok {
+		return 0, fmt.Errorf("missing MsgType field")
+	}
+	str, ok := raw.(string)
+	if !ok {
+		return 0, fmt.Errorf("MsgType must be a string, got %T", raw)
+	}
+	msgType, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, fmt.Errorf("invalid MsgType %q: %w", str, err)
+	}
+	return uint32(msgType), nil
+}
+
 // MessageCodec is an interface for encoding and decoding messages.
 type MessageCodec interface {
 	//ProtoName name of the proto

@@ -3,7 +3,6 @@ package codec
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	sse_bin "github.com/xinchentechnote/fin-proto-sse-bin-go/messages"
@@ -20,24 +19,24 @@ func (codec *BinarySseMessageCodec) ProtoName() string {
 
 // EncodeJSONMap implements MessageCodec.
 func (codec *BinarySseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
-	msgType, err := strconv.Atoi(message["MsgType"].(string))
+	msgType, err := msgTypeFromMap(message)
 	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", message["MsgType"].(string))
+		return nil, err
 	}
 	data, e := codec.JSONToStruct(message)
 	if e != nil {
 		return nil, fmt.Errorf("failed to encode message: %w", e)
 	}
-	return codec.Encode(uint32(msgType), data)
+	return codec.Encode(msgType, data)
 }
 
 // JSONToStruct implements MessageCodec.
 func (codec *BinarySseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (codec.BinaryCodec, error) {
-	msgType, err := strconv.Atoi(jsonMap["MsgType"].(string))
+	msgType, err := msgTypeFromMap(jsonMap)
 	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
+		return nil, err
 	}
-	message, err := sse_bin.NewSseBinaryMessageByMsgType(uint32(msgType))
+	message, err := sse_bin.NewSseBinaryMessageByMsgType(msgType)
 	if err != nil {
 		return nil, err
 	}

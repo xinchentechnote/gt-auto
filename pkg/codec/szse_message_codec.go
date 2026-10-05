@@ -3,7 +3,6 @@ package codec
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	szse_bin "github.com/xinchentechnote/fin-proto-szse-bin-go/messages"
@@ -20,37 +19,41 @@ func (codec *BinarySzseMessageCodec) ProtoName() string {
 
 // EncodeJSONMap implements MessageCodec.
 func (codec *BinarySzseMessageCodec) EncodeJSONMap(message map[string]interface{}) ([]byte, error) {
-	msgType, err := strconv.Atoi(message["MsgType"].(string))
+	msgType, err := msgTypeFromMap(message)
 	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", message["MsgType"].(string))
+		return nil, err
 	}
 	data, e := codec.JSONToStruct(message)
 	if e != nil {
 		return nil, fmt.Errorf("failed to encode message: %w", e)
 	}
-	return codec.Encode(uint32(msgType), data)
+	return codec.Encode(msgType, data)
 }
 
 // JSONToStruct implements MessageCodec.
 func (codec *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (codec.BinaryCodec, error) {
-	msgType, err := strconv.Atoi(jsonMap["MsgType"].(string))
-	if err != nil {
-		return nil, fmt.Errorf("unknown MsgType: %s", jsonMap["MsgType"].(string))
-	}
-	message, err := szse_bin.NewSzseBinaryMessageByMsgType(uint32(msgType))
+	msgType, err := msgTypeFromMap(jsonMap)
 	if err != nil {
 		return nil, err
 	}
-	switch message.(type) {
+	message, err := szse_bin.NewSzseBinaryMessageByMsgType(msgType)
+	if err != nil {
+		return nil, err
+	}
+	switch msg := message.(type) {
 	case *szse_bin.NewOrder:
-		ext, err := szse_bin.NewNewOrderMessageByApplId(jsonMap["ApplID"].(string))
-		if err == nil {
-			message.(*szse_bin.NewOrder).ApplExtend = ext
+		if applID, ok := jsonMap["ApplID"].(string); ok {
+			ext, err := szse_bin.NewNewOrderMessageByApplId(applID)
+			if err == nil {
+				msg.ApplExtend = ext
+			}
 		}
 	case *szse_bin.ExecutionConfirm:
-		ext, err := szse_bin.NewExecutionConfirmMessageByApplId(jsonMap["ApplID"].(string))
-		if err == nil {
-			message.(*szse_bin.ExecutionConfirm).ApplExtend = ext
+		if applID, ok := jsonMap["ApplID"].(string); ok {
+			ext, err := szse_bin.NewExecutionConfirmMessageByApplId(applID)
+			if err == nil {
+				msg.ApplExtend = ext
+			}
 		}
 	}
 	err = ConvertMapToStruct(jsonMap, message)

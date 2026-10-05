@@ -55,6 +55,32 @@ func TestLoadRiskConfirmData(t *testing.T) {
 	assert.Equal(t, "ORIGCLORD1", data["new_order_003"]["ClOrdID"])
 }
 
+// TestLoadCSVToMapMissingStepIdColumn verifies a data file without a StepId
+// column produces an error instead of a panic.
+func TestLoadCSVToMapMissingStepIdColumn(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "data.csv")
+	err := os.WriteFile(f, []byte("Foo,Bar\n1,2\n"), 0o644)
+	assert.NoError(t, err)
+	_, err = LoadCSVToMap(f)
+	assert.ErrorContains(t, err, "StepId")
+}
+
+// TestParseRejectsShortRow verifies a CSV row with too few columns produces
+// an error instead of an index-out-of-range panic.
+func TestParseRejectsShortRow(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "case.csv")
+	content := "case_id,case_title,step_id,sleep_ms,step_desc,action_type,verify_required,test_tool,msg_type,test_data\n" +
+		"c1,title,step_001,1,desc,Send,N,tool,100101,data\n" +
+		",,short_row,1,broken\n"
+	err := os.WriteFile(f, []byte(content), 0o644)
+	assert.NoError(t, err)
+	parser := &CSVCaseParser{FilePath: f}
+	_, err = parser.Parse()
+	assert.ErrorContains(t, err, "columns")
+}
+
 func TestFindTestDataStepNotFound(t *testing.T) {
 	parser := &CSVCaseParser{FilePath: filepath.Join("testdata", "risk_test_case.csv")}
 	_, err := parser.findTestData("risk_100101", "no_such_step")
