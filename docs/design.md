@@ -1,0 +1,172 @@
+# GT-Auto 开发设计文档
+
+> 更新日期：2026-10-06。架构与组件关系见[架构文档](architecture.md)；本文记录设计决策、数据格式规范、扩展指南与测试策略。
+
+## 1. 设计目标
+
+1. **结果可信**：所有失败（比对差异、模拟器故障、用例数据错误）都必须体现在报告中，杜绝"假通过"。
+2. **永不卡死**：任何外部异常（网关静默、连接断开、坏数据）都转化为明确错误，不允许 panic 或无限阻塞。
+3. **协议可扩展**：新增一个二进制协议只需实现 codec + framer 并注册，执行编排与模拟器零改动。
+4. **CI 友好**：非零退出码表达失败；测试全部可在 `-race` 下运行。
+
+## 2. 关键设计决策（ADR）
+
+### D1. Framer 与 Codec 分离
+
+- **背景**：TCP 是字节流，"切帧"（读定长头 + 按长度读体）与"解码"（字节 → 结构体）是两个独立关注点；不同交易所帧头不同，但解码生态（`BinaryCodec`）相同。
+- **决策**：`Framer` 只负责 `ReadFrame(conn) ([]byte, error)`；`MessageCodec` 只负责编解码。模拟器持有两者，串联 `ReadFrame → Decode`。
+- **后果**：新增协议时两者各自实现、独立测试；帧格式问题与字段映射问题可分别定位。
+
+### D2. 泛型模拟器 `Simulator[T fin_codec.BinaryCodec]`
+
+- **决策**：模拟器对报文体类型泛型化（`CreateSimulator[T]`），执行器统一实例化为 `tcp.Simulator[codec.BinaryCodec]`。
+- **后果**：接口返回 `T` 而非 `interface{}`；队列取出的类型断言集中在一处（`dequeueWithContext`）。
+
+### D3. 接收队列：带缓冲 channel（替换 goconcurrentqueue）
+
+- **背景**：早期用 `goconcurrentqueue.FIFO`，超时取数依赖其 context 版 API，且存在遗留 watcher 的实现细节。
+- **决策**：`queue chan receivedMessage`（容量 1024，构造时创建、之后不可变），`Receive` 用 `select { case <-queue; case <-timer.C }` 实现超时。
+- **后果**：删除一个第三方依赖；超时语义一目了然；字段不可变后无并发写。
+- **元素设计**：`receivedMessage{MsgType, Body}` 而非裸 body —— 线上消息类型一路带到校验层（见 D6）。
+
+### D4. 就绪轮询替代 `time.Sleep`
+
+- **背景**：早期用固定 sleep（每模拟器 1s、用例开始前 5s、每步骤 1s）做启动同步：慢且不可靠。
+- **决策**：`Simulator.Ready()`（OMS=已拨号 / TGW=listener 已绑定）+ executor `waitReady`（10ms 轮询、5s 超时）。`auto_start` 模拟器在 init 阶段等待就绪，惰性模拟器在首次使用时启动并等待。
+- **后果**：启动时间从"至少 N 秒"变为"实际就绪时间"；未就绪（如拨号被拒）直接让步骤失败并记录原因。步骤间等待完全由用例的 `sleep_ms` 决定。
+
+### D5. Receive 对 MsgType 快速失败（而非过滤等待）
+
+- **背景**：早期队列丢弃线上 MsgType，网关回错报文时只能得到一个难懂的整体类型不匹配 diff。
+- **决策**：队列元素携带 MsgType；Receive 返回 `(body, msgType, err)`；执行器比对步骤期望的 MsgType，不符立即记为步骤失败（`received MsgType X, expected Y`）。
+- **取舍**：不实现"过滤等待 + 暂存不匹配报文"。当前被测流程是请求/响应式，回错类型本身就是要暴露的缺陷；过滤会引入报文丢弃与乱序语义。若未来需要支持心跳/多路消息，在此处扩展。
+
+### D6. 错误处理约定
+
+| 规则 | 落点 |
+|---|---|
+| 库代码不 `log.Fatal`/`os.Exit`，只返回 error | `config.ParseConfig`（曾用 `log.Fatalf` 导致 defer 失效） |
+| 包装错误必须包装**真实原因**，用 `%w` 保持 `errors.Is/As` 链路 | 三个 framer、`receive0`（曾包装 nil 变量丢失原因） |
+| 外部输入（CSV、JSON map）不允许裸类型断言，缺失/错型返回明确错误 | `msgTypeFromMap`、`LoadCSVToMap`、用例行长度检查 |
+| 连接不可恢复错误（EOF/UnexpectedEOF/ErrClosed）终止接收循环，单条解码失败仅跳过 | `receiveLoop` / `handleClient` |
+| 步骤无法执行 ≠ 静默跳过：一律 `AddStepError` 落入报告 | `executeStep` 全部分支 |
+
+### D7. 测试数据按 sheet 缓存
+
+- **决策**：`CSVCaseParser.sheetCache[sheetName] → (stepID → record)`，每个数据文件最多读一次；记录查找只在本 sheet 内进行。
+- **原因**：早期缓存以 stepID 为全局键，两个 sheet 出现同名 StepId 时先加载者胜出（串数据）；且缓存未命中会反复读同一文件。
+
+### D8. 失败必须可见
+
+- 模拟器创建失败：init 阶段 Error 日志 + 惰性路径让步骤失败。
+- 测试数据无法加载：解析阶段 Warn + 跳过该步骤（步骤缺失会在结果中表现为步骤数少于预期）。
+- 未知 ActionType / 工具名不在配置：步骤失败，错误信息包含实际值（如 `test tool "xxx" not found in config simulators`）。
+
+## 3. 测试用例格式规范
+
+### 3.1 主用例文件（CSV，UTF-8，首行表头，固定 10 列）
+
+| 列 | 字段 | 说明 |
+|---|---|---|
+| 1 | `case_id` | 用例 ID；**非空即开启新用例**，后续行留空表示归属当前用例 |
+| 2 | `case_title` | 用例标题 |
+| 3 | `step_id` | 步骤 ID；同时是测试数据 sheet 中的行键 |
+| 4 | `sleep_ms` | 执行本步骤前的等待毫秒数；空/非法/≤0 不等待 |
+| 5 | `step_desc` | 步骤描述（仅日志展示） |
+| 6 | `action_type` | `Send` 或 `Receive`；其他值记为步骤失败 |
+| 7 | `verify_required` | `Y`（大小写不敏感）时 Receive 步骤执行字段级比对 |
+| 8 | `test_tool` | 模拟器名，必须与配置中的 `name` 一致 |
+| 9 | `msg_type` | 期望的线上消息类型（十进制字符串，如 `100101`、`58`） |
+| 10 | `test_data` | 数据 sheet 名（不含扩展名），工具在同目录找 `<sheet><ext>` 文件 |
+
+示例（`pkg/testcase/testdata/risk_test_case.csv`）：
+
+```csv
+case_id,case_title,step_id,sleep_ms,step_desc,action_type,verify_required,test_tool,msg_type,test_data
+risk_001,order,new_order_001,1,oms send new order,Send,N,risk_bin_oms_1,100101,risk_100101
+,,new_order_002,1,tgw receive new order,Receive,Y,risk_bin_tgw_1,100101,risk_100101
+,,new_order_003,1,tgw send confirm,Send,N,risk_bin_tgw_1,200102,risk_200102
+,,new_order_004,1,oms receive confirm,Receive,Y,risk_bin_oms_1,200102,risk_200102
+```
+
+典型四步流：OMS 发单 → TGW 收到（比对）→ TGW 发确认 → OMS 收到（比对）。
+
+### 3.2 数据 sheet（CSV）
+
+- 首行表头 = 报文字段名（须与 proto 结构体的 `json` tag 一致，如 `ClOrdID`、`UniqueOrigOrderID`）；**必须包含 `StepId` 列**作为行键。
+- 每行是一条完整的步骤数据；执行器按主用例的 `step_id` 在 sheet 中查找同名行。
+- 查找不到 → 该步骤被跳过并 Warn（不会用空数据执行）。
+- Send 与 Receive 引用同一行：Receive 的期望值即"网关应原样转发/回执该报文"。
+
+## 4. 配置文件规范（TOML）
+
+```toml
+# 可选：Receive 步骤等待报文的超时（毫秒），缺省 5000
+receive_timeout_ms = 3000
+
+[[simulators]]
+name = "szse_bin_tgw_1"        # 必须唯一；与用例的 test_tool 对应
+type = "tgw"                    # oms | tgw
+communication = "tcp"           # 当前仅 tcp（字段保留）
+protocol = "binary-szse"        # binary-risk | binary-szse | binary-sse
+listen_address = ":9003"        # tgw 必填
+auto_start = true               # true: 随工具启动并等待就绪; false: 首次被用例引用时惰性启动
+
+[[simulators]]
+name = "szse_bin_oms_1"
+type = "oms"
+communication = "tcp"
+protocol = "binary-szse"
+server_address = "localhost:9003"  # oms 必填：被测网关监听地址
+auto_start = false
+```
+
+经验配置：tgw 用 `auto_start = true`（先监听，网关才能接入）；oms 用 `auto_start = false`（首次发单时才拨号）。
+
+## 5. 扩展指南
+
+### 5.1 新增一个二进制协议（以 `binary-xyz` 为例）
+
+1. **报文库**：提供 `XyzBinary{MsgType, Body}` 封包结构与 `NewXyzBinaryMessageByMsgType` 工厂（参考 `fin-proto-szse-bin-go`，通常代码生成）。
+2. **Codec**：在 `pkg/codec` 新增 `XyzMessageCodec`，实现 `MessageCodec` 五个方法；`MsgType` 解析复用 `msgTypeFromMap`，map→struct 复用 `ConvertMapToStruct`。`Encode(msgType uint32, message)` 负责封包头尾。
+3. **Framer**：新增 `XyzBinFramer`，按帧头布局 `io.ReadFull` 读取；**包装 body 读取错误时 wrap 实际的 error 变量**（历史教训）。
+4. **注册**：工厂 `GetCodec`/`GetFramer` 各加一个 case，常量加进 `message_codec_factory.go`。
+5. **测试**：帧截断错误路径（参考 `framer_test.go` 的表驱动）+ 编解码往返。
+
+执行编排、模拟器、用例格式均无需改动。
+
+### 5.2 新增模拟器类型（如 udp）
+
+`tcp.CreateSimulator` 的 `config.Type` switch 加分支，实现 `Simulator[T]` 接口（重点是 `Ready` 的就绪语义与收发路径）。
+
+### 5.3 新增用例格式（JSON / Excel）
+
+实现 `testcase.CaseParser` 接口，在 `LoadTestCases` 按扩展名挂接；产物为统一的 `[]*TestCase` 模型，下游无感知。
+
+## 6. 测试策略
+
+| 层次 | 位置 | 内容 |
+|---|---|---|
+| codec 单测 | `pkg/codec/*_test.go` | map→struct 转换、非法 MsgType 表驱动（3 协议 × 3 形态）、帧截断错误路径 |
+| 模拟器单测 | `pkg/tcp/receive_loop_test.go` | 断连退出、Receive 超时、Close 幂等/未启动安全、无连接发送报错 |
+| 集成测试 | 同上 `TestOmsTgwEndToEnd` | 真实 TCP 双向收发（risk 协议），断言线上 MsgType |
+| executor 单测 | `pkg/executor/case_executor_test.go` | stub simulator 驱动的 Receive/Send 失败路径、汇总计数、就绪等待、auto_start 语义 |
+| 解析单测 | `pkg/testcase/parser_test.go` | 用例解析、数据隔离、缺 StepId 列、短行、查无数据 |
+
+约定：
+
+- 提交前 `go test ./... -race`（本项目多次靠 race detector 抓出真实竞争）。
+- 修复类提交尽量携带"旧代码必失败"的回归测试（framer 错误包装即先反向验证过）。
+- 不依赖真实外网/固定端口：监听一律 `127.0.0.1:0` 后读取实际地址。
+
+## 7. 已知限制与路线图
+
+| 项 | 现状 | 方向 |
+|---|---|---|
+| Receive 只做 MsgType 快速失败 | 不匹配即失败 | 支持"按类型过滤等待 + 暂存"，适配心跳/多路消息 |
+| 测试报告仅 stdout 日志 | 无落盘 | 生成结构化报告文件（JSON/HTML），main 中"Save the report" TODO |
+| OMS 无重连 | 断连后步骤失败可见 | 增加可配置重连 |
+| TGW 多客户端 | Send 发往最近接受的连接 | 按客户端路由 |
+| communication 字段 | 仅 tcp 实现 | udp / http |
+| 协议覆盖 | risk / szse-bin / sse-bin | STEP(SZSE/SSE)、FIX、IMIX、Protobuf（见 readme 路线图） |
+| `ConvertMapToStruct` | 不支持 slice 字段 | 需要时在 `convertValue` 补充 |
