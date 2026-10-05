@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +20,8 @@ type Simulator[T fin_codec.BinaryCodec] interface {
 	Send(interface{}, fin_codec.BinaryCodec) error
 	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
 	SendFromJSON(message map[string]interface{}) error
-	Receive() (T, error)
+	// Receive waits up to timeout for the next message from the queue.
+	Receive(timeout time.Duration) (T, error)
 	GetCodec() codec.MessageCodec
 	Close() error
 }
@@ -88,14 +90,9 @@ func (sim *OmsSimulator[T]) SendFromJSON(message map[string]interface{}) error {
 	return sim.sendByte(data)
 }
 
-// Receive waits for a response from the server
-func (sim *OmsSimulator[T]) Receive() (T, error) {
-	msg, err := sim.queue.Dequeue()
-	if err != nil {
-		var zero T
-		return zero, fmt.Errorf("error dequeuing message: %w", err)
-	}
-	return msg.(T), nil
+// Receive waits up to timeout for the next message from the server.
+func (sim *OmsSimulator[T]) Receive(timeout time.Duration) (T, error) {
+	return dequeueWithContext[T](sim.queue, timeout)
 }
 
 // receiveLoop reads frames from the connection until it is closed or the peer
@@ -229,14 +226,26 @@ func (sim *TgwSimulator[T]) SendFromJSON(message map[string]interface{}) error {
 	return sim.sendByte(bytes)
 }
 
-// Receive reads the next message from the queue
-func (sim *TgwSimulator[T]) Receive() (T, error) {
-	msg, err := sim.queue.Dequeue()
+// Receive waits up to timeout for the next message from the queue.
+func (sim *TgwSimulator[T]) Receive(timeout time.Duration) (T, error) {
+	return dequeueWithContext[T](sim.queue, timeout)
+}
+
+// dequeueWithContext dequeues the next message, waiting at most timeout
+// before giving up so callers cannot block forever on a silent peer.
+func dequeueWithContext[T fin_codec.BinaryCodec](queue *goconcurrentqueue.FIFO, timeout time.Duration) (T, error) {
+	var zero T
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	item, err := queue.DequeueOrWaitForNextElementContext(ctx)
 	if err != nil {
-		var zero T
-		return zero, fmt.Errorf("error dequeuing message: %w", err)
+		return zero, fmt.Errorf("no message received within %s: %w", timeout, err)
 	}
-	return msg.(T), nil
+	msg, ok := item.(T)
+	if !ok {
+		return zero, fmt.Errorf("unexpected message type %T in queue", item)
+	}
+	return msg, nil
 }
 
 // Close shuts down the TGWServer

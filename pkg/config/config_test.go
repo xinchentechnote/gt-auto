@@ -14,6 +14,7 @@ func TestParseConfig(t *testing.T) {
 	}
 	assert.NotNil(t, config)
 	assert.Len(t, config.Simulators, 2)
+	assert.Equal(t, 3000, config.ReceiveTimeoutMs)
 	// Check the first simulator
 	assert.Equal(t, "szse_bin_oms_1", config.Simulators[1].Name)
 	assert.Equal(t, "oms", config.Simulators[1].Type)

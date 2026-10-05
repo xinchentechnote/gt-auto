@@ -13,19 +13,29 @@ import (
 	"github.com/xinchentechnote/gt-auto/pkg/testcase"
 )
 
+// defaultReceiveTimeout is used when the config does not set
+// receive_timeout_ms.
+const defaultReceiveTimeout = 5 * time.Second
+
 // CaseExecutor is responsible for executing test cases.
 type CaseExecutor struct {
-	Cases        []*testcase.TestCase
-	Config       config.GwAutoConfig
-	simulatorMap map[string]tcp.Simulator[codec.BinaryCodec]
+	Cases          []*testcase.TestCase
+	Config         config.GwAutoConfig
+	simulatorMap   map[string]tcp.Simulator[codec.BinaryCodec]
+	receiveTimeout time.Duration
 }
 
 // NewCaseExecutor creates a new CaseExecutor instance.
 func NewCaseExecutor(config config.GwAutoConfig, cases []*testcase.TestCase) *CaseExecutor {
+	receiveTimeout := defaultReceiveTimeout
+	if config.ReceiveTimeoutMs > 0 {
+		receiveTimeout = time.Duration(config.ReceiveTimeoutMs) * time.Millisecond
+	}
 	executor := &CaseExecutor{
-		Cases:        cases,
-		Config:       config,
-		simulatorMap: make(map[string]tcp.Simulator[codec.BinaryCodec]),
+		Cases:          cases,
+		Config:         config,
+		simulatorMap:   make(map[string]tcp.Simulator[codec.BinaryCodec]),
+		receiveTimeout: receiveTimeout,
 	}
 	executor.initSimulator()
 	return executor
@@ -128,7 +138,7 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 			return
 		}
 		step.SetExpect(expect)
-		actual, err := simulator.Receive()
+		actual, err := simulator.Receive(e.receiveTimeout)
 		if nil != err {
 			//TODO
 			log.Error("Receive failed: ", err)

@@ -12,6 +12,9 @@ type GwAutoConfig struct {
 	// Simulators is a list of simulator configurations
 	Simulators   []SimulatorConfig `toml:"simulators"`
 	SimulatorMap map[string]SimulatorConfig
+	// ReceiveTimeoutMs bounds how long a Receive step waits for a message
+	// before giving up; defaults to 5000 when unset.
+	ReceiveTimeoutMs int `toml:"receive_timeout_ms"`
 }
 
 // InitConfigMap convert slice to map
