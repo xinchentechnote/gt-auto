@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	szse_bin "github.com/xinchentechnote/fin-proto-szse-bin-go/messages"
 )
@@ -44,16 +45,24 @@ func (c *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (c
 	case *szse_bin.NewOrder:
 		if applID, ok := jsonMap["ApplID"].(string); ok {
 			ext, err := szse_bin.NewNewOrderMessageByApplId(applID)
-			if err == nil {
+			if err != nil {
+				log.Warnf("ApplID %q not registered for %T, skipping extension: %v", applID, msg, err)
+			} else {
 				msg.ApplExtend = ext
 			}
+		} else {
+			log.Warnf("%T data has no ApplID, skipping ApplExtend", msg)
 		}
 	case *szse_bin.ExecutionConfirm:
 		if applID, ok := jsonMap["ApplID"].(string); ok {
 			ext, err := szse_bin.NewExecutionConfirmMessageByApplId(applID)
-			if err == nil {
+			if err != nil {
+				log.Warnf("ApplID %q not registered for %T, skipping extension: %v", applID, msg, err)
+			} else {
 				msg.ApplExtend = ext
 			}
+		} else {
+			log.Warnf("%T data has no ApplID, skipping ApplExtend", msg)
 		}
 	}
 	err = ConvertMapToStruct(jsonMap, message)
