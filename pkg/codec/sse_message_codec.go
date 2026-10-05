@@ -59,16 +59,14 @@ func (c *BinarySseMessageCodec) Decode(data []byte) (interface{}, codec.BinaryCo
 	return szseBinary.MsgType, szseBinary.Body, nil
 }
 
-// Encode implements MessageCodec.
-func (c *BinarySseMessageCodec) Encode(ext interface{}, message codec.BinaryCodec) ([]byte, error) {
-	// 将字符串 MsgType 转换为 int32
-	msgType := ext.(uint32)
-	szseBinary := &sse_bin.SseBinary{
+// Encode encodes a message into a byte slice prefixed with its message type.
+func (c *BinarySseMessageCodec) Encode(msgType uint32, message codec.BinaryCodec) ([]byte, error) {
+	sseBinary := &sse_bin.SseBinary{
 		MsgType: msgType,
 		Body:    message,
 	}
 	var buf bytes.Buffer
-	err := szseBinary.Encode(&buf)
+	err := sseBinary.Encode(&buf)
 	if err != nil {
 		return nil, err
 	}

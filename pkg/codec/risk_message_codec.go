@@ -28,10 +28,8 @@ func (b *BinaryRiskMessageCodec) Decode(data []byte) (interface{}, codec.BinaryC
 	return rcBinary.MsgType, rcBinary.Body, nil
 }
 
-// Encode implements MessageCodec.
-func (b *BinaryRiskMessageCodec) Encode(ext interface{}, message codec.BinaryCodec) ([]byte, error) {
-	// 将字符串 MsgType 转换为 int32
-	msgType := ext.(uint32)
+// Encode encodes a message into a byte slice prefixed with its message type.
+func (b *BinaryRiskMessageCodec) Encode(msgType uint32, message codec.BinaryCodec) ([]byte, error) {
 	rcBinary := &risk_bin.RcBinary{
 		Version: 0,
 		MsgType: msgType,

@@ -72,10 +72,8 @@ func (c *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (c
 	return message, nil
 }
 
-// Encode a message into a byte slice and prepends the message type and length.
-func (c *BinarySzseMessageCodec) Encode(ext interface{}, message codec.BinaryCodec) ([]byte, error) {
-	// 将字符串 MsgType 转换为 int32
-	msgType := ext.(uint32)
+// Encode encodes a message into a byte slice prefixed with its message type.
+func (c *BinarySzseMessageCodec) Encode(msgType uint32, message codec.BinaryCodec) ([]byte, error) {
 	szseBinary := &szse_bin.SzseBinary{
 		MsgType: msgType,
 		Body:    message,

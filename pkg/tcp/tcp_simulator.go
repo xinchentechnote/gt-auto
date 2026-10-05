@@ -30,7 +30,7 @@ type Simulator[T fin_codec.BinaryCodec] interface {
 	// Ready reports whether the simulator finished starting: a dialed
 	// connection for OMS, a bound listener for TGW.
 	Ready() bool
-	Send(interface{}, fin_codec.BinaryCodec) error
+	Send(msgType uint32, message fin_codec.BinaryCodec) error
 	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
 	SendFromJSON(message map[string]interface{}) error
 	// Receive waits up to timeout for the next message and reports its wire
@@ -93,8 +93,8 @@ func (sim *OmsSimulator[T]) Start() error {
 }
 
 // Send sends a message to the server
-func (sim *OmsSimulator[T]) Send(ext interface{}, message fin_codec.BinaryCodec) error {
-	data, e := sim.Codec.Encode(ext, message)
+func (sim *OmsSimulator[T]) Send(msgType uint32, message fin_codec.BinaryCodec) error {
+	data, e := sim.Codec.Encode(msgType, message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}
@@ -254,8 +254,8 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 }
 
 // Send sends a message to the client
-func (sim *TgwSimulator[T]) Send(ext interface{}, message fin_codec.BinaryCodec) error {
-	data, e := sim.Codec.Encode(ext, message)
+func (sim *TgwSimulator[T]) Send(msgType uint32, message fin_codec.BinaryCodec) error {
+	data, e := sim.Codec.Encode(msgType, message)
 	if e != nil {
 		return fmt.Errorf("failed to encode message: %w", e)
 	}

@@ -41,9 +41,9 @@ type MessageCodec interface {
 	EncodeJSONMap(map[string]interface{}) ([]byte, error)
 	// JSONToStruct converts a JSON-like map to a Message.
 	JSONToStruct(map[string]interface{}) (codec.BinaryCodec, error)
-	// Encode encodes a Message into a byte slice.
-	// It returns the encoded byte slice and an error if any.
-	Encode(interface{}, codec.BinaryCodec) ([]byte, error)
+	// Encode encodes a Message into a byte slice prefixed with its message
+	// type. It returns the encoded byte slice and an error if any.
+	Encode(msgType uint32, message codec.BinaryCodec) ([]byte, error)
 	// Decode decodes a byte slice into a Message.
 	// It returns the decoded Message and an error if any.
 	// The byte slice must be of the correct length for the message type.
