@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -41,6 +42,9 @@ func TestInitSimulatorStartsAllSimulators(t *testing.T) {
 		t.Fatalf("expected 2 simulators, got %d", len(e.simulatorMap))
 	}
 	for name, sim := range e.simulatorMap {
+		if !sim.Ready() {
+			t.Fatalf("simulator %s should be ready after init", name)
+		}
 		if err := sim.Close(); err != nil {
 			t.Fatalf("failed to close simulator %s: %v", name, err)
 		}
@@ -50,10 +54,17 @@ func TestInitSimulatorStartsAllSimulators(t *testing.T) {
 // TestInitSimulatorHonorsAutoStart verifies only auto_start simulators are
 // started up front; the rest start lazily on first use.
 func TestInitSimulatorHonorsAutoStart(t *testing.T) {
+	// A real listener so the lazily started OMS simulator can dial successfully.
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to bind dummy listener: %v", err)
+	}
+	defer lis.Close()
+
 	conf := config.GwAutoConfig{
 		Simulators: []config.SimulatorConfig{
 			{Name: "tgw_auto", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0", AutoStart: true},
-			{Name: "oms_lazy", Type: "oms", Protocol: "binary-risk", ServerAddress: "127.0.0.1:1", AutoStart: false},
+			{Name: "oms_lazy", Type: "oms", Protocol: "binary-risk", ServerAddress: lis.Addr().String(), AutoStart: false},
 		},
 	}
 	conf.InitConfigMap()

@@ -19,6 +19,13 @@ import (
 // receive_timeout_ms.
 const defaultReceiveTimeout = 5 * time.Second
 
+const (
+	// readyPollInterval is how often waitReady checks simulator readiness.
+	readyPollInterval = 10 * time.Millisecond
+	// readyTimeout bounds how long waitReady waits for a simulator to start.
+	readyTimeout = 5 * time.Second
+)
+
 // CaseExecutor is responsible for executing test cases.
 type CaseExecutor struct {
 	Cases          []*testcase.TestCase
@@ -60,9 +67,22 @@ func (e *CaseExecutor) initSimulator() {
 			}
 		}()
 		e.simulatorMap[config.Name] = simulator
+		if err := waitReady(simulator, readyTimeout); err != nil {
+			log.Errorf("Simulator %s: %v", config.Name, err)
+		}
 	}
-	// Give auto-started simulators time to bind their listeners.
-	time.Sleep(1000 * time.Millisecond)
+}
+
+// waitReady blocks until the simulator reports ready or the timeout elapses.
+func waitReady(simulator tcp.Simulator[codec.BinaryCodec], timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if simulator.Ready() {
+			return nil
+		}
+		time.Sleep(readyPollInterval)
+	}
+	return fmt.Errorf("not ready within %s", timeout)
 }
 
 // RunSummary aggregates the outcome of a full test run.
@@ -75,7 +95,6 @@ type RunSummary struct {
 
 // Execute runs the test cases and returns a run summary.
 func (e *CaseExecutor) Execute() RunSummary {
-	time.Sleep(5 * time.Second)
 	if e.Cases == nil {
 		return RunSummary{}
 	}
@@ -206,8 +225,9 @@ func (e *CaseExecutor) getOrStartSimulator(testTool string) (tcp.Simulator[codec
 		}
 	}()
 	e.simulatorMap[testTool] = simulator
-	// Give the start goroutine time to bind the listener or dial.
-	time.Sleep(1000 * time.Millisecond)
+	if err := waitReady(simulator, readyTimeout); err != nil {
+		return nil, fmt.Errorf("simulator %q: %w", testTool, err)
+	}
 	return simulator, nil
 }
 

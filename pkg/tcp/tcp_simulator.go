@@ -18,6 +18,9 @@ import (
 // Simulator interface defines the methods for both OMS and TGW simulators
 type Simulator[T fin_codec.BinaryCodec] interface {
 	Start() error
+	// Ready reports whether the simulator finished starting: a dialed
+	// connection for OMS, a bound listener for TGW.
+	Ready() bool
 	Send(interface{}, fin_codec.BinaryCodec) error
 	//SendFromJSON to send JSON-like map,it should implement convert JSON-like map to T
 	SendFromJSON(message map[string]interface{}) error
@@ -53,6 +56,13 @@ type TgwSimulator[T fin_codec.BinaryCodec] struct {
 
 func (sim *OmsSimulator[T]) GetCodec() codec.MessageCodec {
 	return sim.Codec
+}
+
+// Ready reports whether the connection to the server is established.
+func (sim *OmsSimulator[T]) Ready() bool {
+	sim.connMu.Lock()
+	defer sim.connMu.Unlock()
+	return sim.conn != nil
 }
 
 // Start connects to the TGWServer
@@ -160,6 +170,13 @@ func (sim *OmsSimulator[T]) Close() error {
 // GetCodec returns the message codec used by the simulator
 func (sim *TgwSimulator[T]) GetCodec() codec.MessageCodec {
 	return sim.Codec
+}
+
+// Ready reports whether the listener is bound and accepting connections.
+func (sim *TgwSimulator[T]) Ready() bool {
+	sim.stopMu.Lock()
+	defer sim.stopMu.Unlock()
+	return sim.listener != nil
 }
 
 // Start listens for incoming connections on the TGWServer
