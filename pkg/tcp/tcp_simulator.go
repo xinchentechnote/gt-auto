@@ -42,10 +42,12 @@ type TgwSimulator[T fin_codec.BinaryCodec] struct {
 	listener      net.Listener
 	stopMu        sync.Mutex
 	stopChan      chan struct{}
-	queue         *goconcurrentqueue.FIFO
-	Codec         codec.MessageCodec
-	Framer        codec.Framer
-	conn          net.Conn
+	connMu        sync.Mutex
+	// conn is the most recently accepted client connection, used by Send.
+	conn   net.Conn
+	queue  *goconcurrentqueue.FIFO
+	Codec  codec.MessageCodec
+	Framer codec.Framer
 }
 
 func (sim *OmsSimulator[T]) GetCodec() codec.MessageCodec {
@@ -135,8 +137,12 @@ func (sim *OmsSimulator[T]) receive0() error {
 	return nil
 }
 
-// Close closes the OMSClient connection
+// Close closes the OMSClient connection. Closing the connection also stops
+// the receive loop. It is safe to call before Start.
 func (sim *OmsSimulator[T]) Close() error {
+	if sim.conn == nil {
+		return nil
+	}
 	return sim.conn.Close()
 }
 
@@ -147,24 +153,23 @@ func (sim *TgwSimulator[T]) GetCodec() codec.MessageCodec {
 
 // Start listens for incoming connections on the TGWServer
 func (sim *TgwSimulator[T]) Start() error {
-	var err error
-	sim.listener, err = net.Listen("tcp", sim.ListenAddress)
+	listener, err := net.Listen("tcp", sim.ListenAddress)
 	if err != nil {
 		return fmt.Errorf("error starting server: %w", err)
 	}
-	log.Printf("TGW server started on %s", sim.ListenAddress)
 	sim.stopMu.Lock()
+	sim.listener = listener
 	sim.stopChan = make(chan struct{})
 	sim.stopMu.Unlock()
+	log.Printf("TGW server started on %s", sim.ListenAddress)
 	sim.queue = goconcurrentqueue.NewFIFO()
 	go func() {
 		<-sim.stopChan
-		sim.listener.Close()
+		listener.Close()
 	}()
 
 	for {
 		conn, err := sim.listener.Accept()
-		sim.conn = conn
 		if err != nil {
 			select {
 			case <-sim.stopChan:
@@ -175,6 +180,9 @@ func (sim *TgwSimulator[T]) Start() error {
 				continue
 			}
 		}
+		sim.connMu.Lock()
+		sim.conn = conn
+		sim.connMu.Unlock()
 		go sim.handleClient(conn)
 	}
 }
@@ -215,6 +223,11 @@ func (sim *TgwSimulator[T]) Send(ext interface{}, message fin_codec.BinaryCodec)
 }
 
 func (sim *TgwSimulator[T]) sendByte(message []byte) error {
+	sim.connMu.Lock()
+	defer sim.connMu.Unlock()
+	if sim.conn == nil {
+		return fmt.Errorf("no client connection established")
+	}
 	_, err := sim.conn.Write(message)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
@@ -252,10 +265,10 @@ func dequeueWithContext[T fin_codec.BinaryCodec](queue *goconcurrentqueue.FIFO, 
 	return msg, nil
 }
 
-// Close shuts down the TGWServer. It is safe to call before Start or twice.
+// Close shuts down the TGWServer and drops the accepted client connection.
+// It is safe to call before Start or twice.
 func (sim *TgwSimulator[T]) Close() error {
 	sim.stopMu.Lock()
-	defer sim.stopMu.Unlock()
 	if sim.stopChan != nil {
 		select {
 		case <-sim.stopChan:
@@ -263,6 +276,16 @@ func (sim *TgwSimulator[T]) Close() error {
 		default:
 			close(sim.stopChan)
 		}
+	}
+	sim.stopMu.Unlock()
+
+	// Closing the client connection unblocks handleClient and any in-flight
+	// reads so goroutines can exit.
+	sim.connMu.Lock()
+	conn := sim.conn
+	sim.connMu.Unlock()
+	if conn != nil {
+		conn.Close()
 	}
 	return nil
 }

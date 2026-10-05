@@ -157,3 +157,96 @@ func TestOmsReceiveReturnsEnqueuedMessage(t *testing.T) {
 		t.Fatalf("unexpected message type %T", msg)
 	}
 }
+
+// TestTgwCloseClosesClientConn verifies Close drops the accepted client
+// connection so handleClient can exit.
+func TestTgwCloseClosesClientConn(t *testing.T) {
+	riskCodec, framer := newTestSimulatorCodec()
+	sim := &TgwSimulator[fin_codec.BinaryCodec]{
+		ListenAddress: "127.0.0.1:0",
+		Codec:         riskCodec,
+		Framer:        framer,
+	}
+	done := make(chan error, 1)
+	go func() { done <- sim.Start() }()
+
+	// Wait for the listener to come up.
+	deadline := time.Now().Add(2 * time.Second)
+	var addr string
+	for time.Now().Before(deadline) {
+		sim.stopMu.Lock()
+		listener := sim.listener
+		sim.stopMu.Unlock()
+		if listener != nil {
+			addr = listener.Addr().String()
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if addr == "" {
+		t.Fatal("TGW listener did not start in time")
+	}
+
+	client, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("client dial failed: %v", err)
+	}
+	defer client.Close()
+
+	// Wait for the server side to register the connection.
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		sim.connMu.Lock()
+		registered := sim.conn != nil
+		sim.connMu.Unlock()
+		if registered {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if err := sim.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	_ = client.SetReadDeadline(time.Now().Add(2 * time.Second))
+	buf := make([]byte, 1)
+	if _, err := client.Read(buf); err == nil {
+		t.Fatal("expected read error after Close, got none")
+	}
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Start returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Start accept loop did not exit after Close")
+	}
+}
+
+// TestTgwSendByteWithoutClient verifies sendByte reports an error instead of
+// panicking when no client has connected.
+func TestTgwSendByteWithoutClient(t *testing.T) {
+	riskCodec, framer := newTestSimulatorCodec()
+	sim := &TgwSimulator[fin_codec.BinaryCodec]{
+		Codec:  riskCodec,
+		Framer: framer,
+	}
+	if err := sim.sendByte([]byte("x")); err == nil {
+		t.Fatal("expected error for missing client connection")
+	}
+}
+
+// TestOmsCloseBeforeStart verifies Close does not panic when Start was never
+// called (nil connection).
+func TestOmsCloseBeforeStart(t *testing.T) {
+	riskCodec, framer := newTestSimulatorCodec()
+	sim := &OmsSimulator[fin_codec.BinaryCodec]{
+		Codec:  riskCodec,
+		Framer: framer,
+	}
+	if err := sim.Close(); err != nil {
+		t.Fatalf("Close before Start should be a no-op, got: %v", err)
+	}
+}
