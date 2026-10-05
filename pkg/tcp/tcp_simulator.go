@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/enriquebris/goconcurrentqueue"
@@ -39,6 +40,7 @@ type OmsSimulator[T fin_codec.BinaryCodec] struct {
 type TgwSimulator[T fin_codec.BinaryCodec] struct {
 	ListenAddress string
 	listener      net.Listener
+	stopMu        sync.Mutex
 	stopChan      chan struct{}
 	queue         *goconcurrentqueue.FIFO
 	Codec         codec.MessageCodec
@@ -151,7 +153,9 @@ func (sim *TgwSimulator[T]) Start() error {
 		return fmt.Errorf("error starting server: %w", err)
 	}
 	log.Printf("TGW server started on %s", sim.ListenAddress)
+	sim.stopMu.Lock()
 	sim.stopChan = make(chan struct{})
+	sim.stopMu.Unlock()
 	sim.queue = goconcurrentqueue.NewFIFO()
 	go func() {
 		<-sim.stopChan
@@ -248,8 +252,17 @@ func dequeueWithContext[T fin_codec.BinaryCodec](queue *goconcurrentqueue.FIFO, 
 	return msg, nil
 }
 
-// Close shuts down the TGWServer
+// Close shuts down the TGWServer. It is safe to call before Start or twice.
 func (sim *TgwSimulator[T]) Close() error {
-	close(sim.stopChan)
+	sim.stopMu.Lock()
+	defer sim.stopMu.Unlock()
+	if sim.stopChan != nil {
+		select {
+		case <-sim.stopChan:
+			// already closed
+		default:
+			close(sim.stopChan)
+		}
+	}
 	return nil
 }

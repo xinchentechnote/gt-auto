@@ -50,9 +50,8 @@ func (e *CaseExecutor) initSimulator() {
 		}
 		time.Sleep(1000 * time.Millisecond)
 		go func() {
-			err = simulator.Start()
-			if nil != err {
-				return
+			if startErr := simulator.Start(); startErr != nil {
+				log.Errorf("Failed to start simulator %s: %v", config.Name, startErr)
 			}
 		}()
 		e.simulatorMap[config.Name] = simulator

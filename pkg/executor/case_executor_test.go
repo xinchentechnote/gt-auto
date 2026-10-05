@@ -25,6 +25,28 @@ func TestReceiveTimeoutFromConfig(t *testing.T) {
 	}
 }
 
+// TestInitSimulatorStartsAllSimulators verifies all configured simulators are
+// created and started. Run with -race: the start goroutines used to write the
+// loop's err variable, racing with the next CreateSimulator call.
+func TestInitSimulatorStartsAllSimulators(t *testing.T) {
+	conf := config.GwAutoConfig{
+		Simulators: []config.SimulatorConfig{
+			{Name: "tgw1", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0"},
+			{Name: "tgw2", Type: "tgw", Protocol: "binary-risk", ListenAddress: "127.0.0.1:0"},
+		},
+	}
+	conf.InitConfigMap()
+	e := NewCaseExecutor(conf, nil)
+	if len(e.simulatorMap) != 2 {
+		t.Fatalf("expected 2 simulators, got %d", len(e.simulatorMap))
+	}
+	for name, sim := range e.simulatorMap {
+		if err := sim.Close(); err != nil {
+			t.Fatalf("failed to close simulator %s: %v", name, err)
+		}
+	}
+}
+
 // TestExecuteStepRecordsUnavailableSimulator verifies a step whose test tool
 // cannot be created is recorded as a failed result instead of being skipped.
 func TestExecuteStepRecordsUnavailableSimulator(t *testing.T) {
