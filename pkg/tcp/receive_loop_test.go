@@ -6,9 +6,18 @@ import (
 	"testing"
 	"time"
 
+	risk_bin "github.com/xinchentechnote/fin-proto-risk-bin-go/messages"
 	fin_codec "github.com/xinchentechnote/fin-proto-runtime-bin-go/codec"
 	"github.com/xinchentechnote/gt-auto/pkg/codec"
 )
+
+func init() {
+	// Register a test message type so the risk codec can decode the frames
+	// used by the integration test.
+	risk_bin.RegistryRcBinaryMsgTypeFactory(999998, func() fin_codec.BinaryCodec {
+		return &dummyFrame{}
+	})
+}
 
 // dummyFrame is a minimal BinaryCodec used to exercise the receive queue.
 type dummyFrame struct{}
@@ -251,4 +260,75 @@ func TestOmsCloseBeforeStart(t *testing.T) {
 	if err := sim.Close(); err != nil {
 		t.Fatalf("Close before Start should be a no-op, got: %v", err)
 	}
+}
+
+// TestOmsTgwEndToEnd wires an OMS client to a TGW server over the risk
+// protocol and verifies both directions: OMS.Send -> TGW.Receive and
+// TGW.SendFromJSON -> OMS.Receive.
+func TestOmsTgwEndToEnd(t *testing.T) {
+	riskCodec, framer := newTestSimulatorCodec()
+	tgw := &TgwSimulator[fin_codec.BinaryCodec]{
+		ListenAddress: "127.0.0.1:0",
+		queue:         make(chan receivedMessage, 16),
+		Codec:         riskCodec,
+		Framer:        framer,
+	}
+	go func() { _ = tgw.Start() }()
+	t.Cleanup(func() { _ = tgw.Close() })
+	waitForReady(t, tgw)
+
+	oms := &OmsSimulator[fin_codec.BinaryCodec]{
+		ServerAddress: tgw.listener.Addr().String(),
+		queue:         make(chan receivedMessage, 16),
+		Codec:         riskCodec,
+		Framer:        framer,
+	}
+	if err := oms.Start(); err != nil {
+		t.Fatalf("OMS start failed: %v", err)
+	}
+	t.Cleanup(func() { _ = oms.Close() })
+	waitForReady(t, oms)
+
+	// OMS -> TGW
+	if err := oms.Send(999998, &dummyFrame{}); err != nil {
+		t.Fatalf("OMS send failed: %v", err)
+	}
+	body, msgType, err := tgw.Receive(2 * time.Second)
+	if err != nil {
+		t.Fatalf("TGW receive failed: %v", err)
+	}
+	if msgType != 999998 {
+		t.Fatalf("TGW got msg type %d, want 999998", msgType)
+	}
+	if _, ok := body.(*dummyFrame); !ok {
+		t.Fatalf("TGW got unexpected body type %T", body)
+	}
+
+	// TGW -> OMS through the JSON encoding path
+	if err := tgw.SendFromJSON(map[string]interface{}{"MsgType": "999998"}); err != nil {
+		t.Fatalf("TGW send failed: %v", err)
+	}
+	body, msgType, err = oms.Receive(2 * time.Second)
+	if err != nil {
+		t.Fatalf("OMS receive failed: %v", err)
+	}
+	if msgType != 999998 {
+		t.Fatalf("OMS got msg type %d, want 999998", msgType)
+	}
+	if _, ok := body.(*dummyFrame); !ok {
+		t.Fatalf("OMS got unexpected body type %T", body)
+	}
+}
+
+// waitForReady blocks until the simulator reports ready or the test times out.
+func waitForReady(t *testing.T, sim Simulator[fin_codec.BinaryCodec]) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if sim.Ready() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("simulator did not become ready in time")
 }

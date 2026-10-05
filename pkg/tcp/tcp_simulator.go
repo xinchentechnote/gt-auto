@@ -45,6 +45,8 @@ type OmsSimulator[T fin_codec.BinaryCodec] struct {
 	ServerAddress string
 	connMu        sync.Mutex
 	conn          net.Conn
+	// queue buffers decoded messages; set at construction (see
+	// CreateSimulator) and never mutated afterwards, so reads are race-free.
 	queue         chan receivedMessage
 	Codec         codec.MessageCodec
 	Framer        codec.Framer
@@ -77,7 +79,6 @@ func (sim *OmsSimulator[T]) Ready() bool {
 
 // Start connects to the TGWServer
 func (sim *OmsSimulator[T]) Start() error {
-	sim.queue = make(chan receivedMessage, receiveQueueCapacity)
 	conn, err := net.DialTimeout("tcp", sim.ServerAddress, 5*time.Second)
 	if err != nil {
 		log.Printf("failed to connect to server: %s", err)
@@ -201,7 +202,6 @@ func (sim *TgwSimulator[T]) Start() error {
 	sim.stopChan = make(chan struct{})
 	sim.stopMu.Unlock()
 	log.Printf("TGW server started on %s", sim.ListenAddress)
-	sim.queue = make(chan receivedMessage, receiveQueueCapacity)
 	go func() {
 		<-sim.stopChan
 		listener.Close()

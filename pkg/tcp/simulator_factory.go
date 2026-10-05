@@ -22,12 +22,14 @@ func CreateSimulator[T fin_codec.BinaryCodec](config config.SimulatorConfig) (Si
 	case "oms":
 		return &OmsSimulator[T]{
 			ServerAddress: config.ServerAddress,
+			queue:         make(chan receivedMessage, receiveQueueCapacity),
 			Codec:         codec,
 			Framer:        framer,
 		}, nil
 	case "tgw":
 		return &TgwSimulator[T]{
 			ListenAddress: config.ListenAddress,
+			queue:         make(chan receivedMessage, receiveQueueCapacity),
 			Codec:         codec,
 			Framer:        framer,
 		}, nil
