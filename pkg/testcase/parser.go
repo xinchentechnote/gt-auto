@@ -2,6 +2,7 @@ package testcase
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -94,5 +95,9 @@ func (p *CSVCaseParser) findTestData(sheetName, stepID string) (map[string]inter
 		p.testDataCache[k] = v
 	}
 
-	return p.testDataCache[stepID], nil
+	result, ok := p.testDataCache[stepID]
+	if !ok {
+		return nil, fmt.Errorf("step %s not found in test data file %s", stepID, sheetName+ext)
+	}
+	return result, nil
 }

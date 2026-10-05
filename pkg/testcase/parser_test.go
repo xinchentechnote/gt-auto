@@ -1,6 +1,7 @@
 package testcase
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -42,4 +43,34 @@ func TestLoadCSVToMap(t *testing.T) {
 	assert.Len(t, data, 2, "should parse 2 rows")
 	assert.Equal(t, "new_order_001", data["new_order_001"]["StepId"])
 	assert.Equal(t, "new_order_002", data["new_order_002"]["StepId"])
+}
+
+func TestFindTestDataStepNotFound(t *testing.T) {
+	parser := &CSVCaseParser{FilePath: filepath.Join("testdata", "risk_test_case.csv")}
+	_, err := parser.findTestData("risk_100101", "no_such_step")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no_such_step")
+}
+
+// TestParseMissingTestDataStep verifies a step whose test data cannot be
+// resolved is skipped with an error instead of being appended with a nil
+// TestDatas map (which would panic later on assignment in the executor).
+func TestParseMissingTestDataStep(t *testing.T) {
+	dir := t.TempDir()
+	caseFile := filepath.Join(dir, "case.csv")
+	dataFile := filepath.Join(dir, "data.csv")
+	err := os.WriteFile(dataFile, []byte("StepId,ClOrdID\nstep_001,c0001\n"), 0o644)
+	assert.NoError(t, err)
+	csvContent := "case_id,case_title,step_id,sleep_ms,step_desc,action_type,verify_required,test_tool,msg_type,test_data\n" +
+		"c1,title,step_001,1,desc,Send,N,tool,100101,data\n" +
+		",,step_missing,1,desc,Send,N,tool,100101,data\n"
+	err = os.WriteFile(caseFile, []byte(csvContent), 0o644)
+	assert.NoError(t, err)
+
+	parser := &CSVCaseParser{FilePath: caseFile}
+	cases, err := parser.Parse()
+	assert.NoError(t, err)
+	assert.Len(t, cases, 1)
+	assert.Len(t, cases[0].Steps, 1, "step with unresolvable test data should be skipped")
+	assert.Equal(t, "step_001", cases[0].Steps[0].StepID)
 }
