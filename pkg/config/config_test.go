@@ -35,3 +35,13 @@ func TestParseConfig(t *testing.T) {
 	config.InitConfigMap()
 	assert.Equal(t, len(config.SimulatorMap), 2)
 }
+
+// TestParseConfigMissingFile verifies a missing config file returns an error
+// instead of exiting the process (ParseConfig used to log.Fatalf).
+func TestParseConfigMissingFile(t *testing.T) {
+	_, err := config.ParseConfig("testdata/no_such_config.toml")
+	assert.ErrorContains(t, err, "failed to open config file")
+
+	_, err = config.ParseConfig("testdata/gw-auto-szse.toml")
+	assert.NoError(t, err)
+}

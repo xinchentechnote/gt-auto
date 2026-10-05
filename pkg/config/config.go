@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -51,14 +52,12 @@ func ParseConfig(filePath string) (*GwAutoConfig, error) {
 	var config GwAutoConfig
 	file, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("failed to open config file: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to open config file: %w", err)
 	}
 	defer file.Close()
 
 	if _, err := toml.NewDecoder(file).Decode(&config); err != nil {
-		log.Fatalf("failed to decode toml: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to decode toml: %w", err)
 	}
 
 	log.Info("Parsed config: \n", config.Simulators)
