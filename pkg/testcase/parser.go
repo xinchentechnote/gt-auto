@@ -84,7 +84,6 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 		}
 		step.TestDatas = data
 		currentCase.Steps = append(currentCase.Steps, step)
-		cases[len(cases)-1] = currentCase
 	}
 	return cases, nil
 }

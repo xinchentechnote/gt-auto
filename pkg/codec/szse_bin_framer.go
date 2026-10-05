@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-// SzseBinFramer is a framer for the risk binary protocol.
+// SzseBinFramer is a framer for the SZSE binary protocol.
 type SzseBinFramer struct{}
 
 // ProtoName implements Framer.

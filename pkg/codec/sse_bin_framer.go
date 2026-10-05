@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-// SseBinFramer is a framer for the risk binary protocol.
+// SseBinFramer is a framer for the SSE binary protocol.
 type SseBinFramer struct{}
 
 // ProtoName implements Framer.
