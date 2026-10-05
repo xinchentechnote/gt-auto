@@ -41,6 +41,9 @@ type StepValidateResult struct {
 	StepID string
 	Passed bool
 	Detail validate.CompareResult
+	// Error is non-empty when the step could not execute at all
+	// (e.g. simulator unavailable, send failed, receive timeout).
+	Error string
 }
 
 // TestCase represents a test case with its steps.
@@ -58,6 +61,17 @@ func (t *TestCase) AddValidateResult(index int, stepID string, result validate.C
 		StepID: stepID,
 		Passed: result.Equal,
 		Detail: result,
+	})
+}
+
+// AddStepError records a step that could not execute as a failed result so
+// infrastructure problems surface in the report instead of being skipped.
+func (t *TestCase) AddStepError(index int, stepID string, err error) {
+	t.ValidateResults = append(t.ValidateResults, StepValidateResult{
+		Index:  index,
+		StepID: stepID,
+		Passed: false,
+		Error:  err.Error(),
 	})
 }
 

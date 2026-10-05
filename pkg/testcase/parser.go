@@ -68,7 +68,7 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 		}
 		data, err := p.findTestData(step.TestData, step.StepID)
 		if err != nil {
-			log.Infof("Error finding test data for %s step %s: %v\n", step.TestData, step.StepID, err)
+			log.Warnf("Skipping step %s: cannot load test data %s: %v", step.StepID, step.TestData, err)
 			continue
 		}
 		step.TestDatas = data

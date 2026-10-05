@@ -45,6 +45,7 @@ func (e *CaseExecutor) initSimulator() {
 	for _, config := range e.Config.Simulators {
 		simulator, err := tcp.CreateSimulator[codec.BinaryCodec](config)
 		if nil != err {
+			log.Errorf("Failed to create simulator %s: %v", config.Name, err)
 			continue
 		}
 		time.Sleep(1000 * time.Millisecond)
@@ -77,6 +78,10 @@ func (e *CaseExecutor) Execute() {
 func (e *CaseExecutor) showResult(index int, c *testcase.TestCase) {
 	log.Infof("Show to case result: %d, %s - %s\n", index, c.CaseID, c.CaseTitle)
 	for _, result := range c.ValidateResults {
+		if result.Error != "" {
+			log.Errorf("Show to case result: %d, %s❌ step failed: %s", result.Index, result.StepID, result.Error)
+			continue
+		}
 		if !result.Passed {
 			log.Errorf("Show to case result: %d, %s❌", result.Index, result.StepID)
 			table := tablewriter.NewWriter(os.Stdout)
@@ -104,44 +109,36 @@ func (e *CaseExecutor) executeCase(index int, c *testcase.TestCase) {
 
 func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testcase.TestStep) {
 	log.Infof("Start to execute step: %d, %s\n", index, step.StepID)
-	var simulator = e.simulatorMap[step.TestTool]
-	if nil == simulator {
-		conf := e.Config.SimulatorMap[step.TestTool]
-		var err error
-		simulator, err = tcp.CreateSimulator[codec.BinaryCodec](conf)
-		if nil != err {
-			return
-		}
-		go func() {
-			err = simulator.Start()
-			if nil != err {
-				return
-			}
-		}()
-		e.simulatorMap[step.TestTool] = simulator
+	simulator, err := e.getOrStartSimulator(step.TestTool)
+	if err != nil {
+		log.Errorf("Step %d-%s cannot run: %v", index, step.StepID, err)
+		c.AddStepError(index, step.StepID, err)
+		return
 	}
 	time.Sleep(1000 * time.Millisecond)
 	switch step.ActionType {
 	case "Send":
 		step.TestDatas["MsgType"] = step.MsgType
 		log.Info("Send data: ", step.TestDatas)
-		err := simulator.SendFromJSON(step.TestDatas)
-		if nil != err {
+		if err := simulator.SendFromJSON(step.TestDatas); err != nil {
 			log.Errorf("Send failed:%s", err)
+			c.AddStepError(index, step.StepID, fmt.Errorf("send failed: %w", err))
 		}
 	case "Receive":
 		step.TestDatas["MsgType"] = step.MsgType
 		expect, err := simulator.GetCodec().JSONToStruct(step.TestDatas)
-		if nil != err {
+		if err != nil {
 			//TODO
 			log.Error("Expect JsonToStruct failed: ", err)
+			c.AddStepError(index, step.StepID, fmt.Errorf("build expected message: %w", err))
 			return
 		}
 		step.SetExpect(expect)
 		actual, err := simulator.Receive(e.receiveTimeout)
-		if nil != err {
+		if err != nil {
 			//TODO
 			log.Error("Receive failed: ", err)
+			c.AddStepError(index, step.StepID, fmt.Errorf("receive failed: %w", err))
 			return
 		}
 		if step.VerifyRequired {
@@ -153,6 +150,31 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 			c.AddValidateResult(index, step.StepID, result)
 		}
 	default:
-		log.Warnf("Unknown action type: %s", step.ActionType)
+		err := fmt.Errorf("unknown action type: %s", step.ActionType)
+		log.Warn(err)
+		c.AddStepError(index, step.StepID, err)
 	}
+}
+
+// getOrStartSimulator returns the simulator for the test tool, lazily
+// creating and starting it on first use.
+func (e *CaseExecutor) getOrStartSimulator(testTool string) (tcp.Simulator[codec.BinaryCodec], error) {
+	if simulator, ok := e.simulatorMap[testTool]; ok {
+		return simulator, nil
+	}
+	conf, ok := e.Config.SimulatorMap[testTool]
+	if !ok {
+		return nil, fmt.Errorf("test tool %q not found in config simulators", testTool)
+	}
+	simulator, err := tcp.CreateSimulator[codec.BinaryCodec](conf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create simulator %q: %w", testTool, err)
+	}
+	go func() {
+		if startErr := simulator.Start(); startErr != nil {
+			log.Errorf("Failed to start simulator %s: %v", testTool, startErr)
+		}
+	}()
+	e.simulatorMap[testTool] = simulator
+	return simulator, nil
 }
