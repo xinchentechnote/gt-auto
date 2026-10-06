@@ -138,7 +138,7 @@ type CaseParser interface {
 }
 ```
 
-当前仅有 `CSVCaseParser` 实现（`LoadTestCases` 按扩展名分发，JSON/Excel 留有 TODO）。
+当前有两个实现，`LoadTestCases` 按扩展名分发：`CSVCaseParser`（`.csv`，测试数据放在同目录的独立 sheet 文件中）与 `JSONCaseParser`（`.json`，测试数据内联在每个步骤的 `testData` 对象中）；Excel 格式待实现（见设计文档 §5.3）。
 
 ## 4. 执行流程
 

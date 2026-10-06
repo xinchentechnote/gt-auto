@@ -1,0 +1,82 @@
+{
+  "cases": [
+    {
+      "caseId": "risk_001",
+      "caseTitle": "order",
+      "steps": [
+        {
+          "stepId": "new_order_001",
+          "sleepMs": 1,
+          "stepDesc": "oms send new order",
+          "actionType": "Send",
+          "verifyRequired": false,
+          "testTool": "risk_bin_oms_1",
+          "msgType": "100101",
+          "testData": {
+            "UniqueOrderID": "ORDER00001",
+            "ClOrdID": "c00001",
+            "SecurityID": "000001",
+            "Side": "1",
+            "Price": "123456789",
+            "OrderQty": "100",
+            "OrdType": "1",
+            "Account": "a00001"
+          }
+        },
+        {
+          "stepId": "new_order_002",
+          "sleepMs": 1,
+          "stepDesc": "tgw receive new order",
+          "actionType": "Receive",
+          "verifyRequired": true,
+          "testTool": "risk_bin_tgw_1",
+          "msgType": "100101",
+          "testData": {
+            "UniqueOrderID": "ORDER00001",
+            "ClOrdID": "c00001",
+            "SecurityID": "000001",
+            "Side": "1",
+            "Price": "123456789",
+            "OrderQty": "100",
+            "OrdType": "1",
+            "Account": "a00001"
+          }
+        },
+        {
+          "stepId": "new_order_003",
+          "sleepMs": 1,
+          "stepDesc": "tgw send confirm",
+          "actionType": "Send",
+          "verifyRequired": false,
+          "testTool": "risk_bin_tgw_1",
+          "msgType": 200102,
+          "testData": {
+            "UniqueOrderID": "ORDERID00001",
+            "UniqueOrigOrderID": "CLORD0001",
+            "ClOrdID": "ORIGCLORD1",
+            "ExecType": "1",
+            "OrdRejReason": "9527",
+            "OrdCnfmID": "x0001"
+          }
+        },
+        {
+          "stepId": "new_order_004",
+          "sleepMs": 1,
+          "stepDesc": "oms receive confirm",
+          "actionType": "Receive",
+          "verifyRequired": true,
+          "testTool": "risk_bin_oms_1",
+          "msgType": 200102,
+          "testData": {
+            "UniqueOrderID": "ORDERID00001",
+            "UniqueOrigOrderID": "CLORD0001",
+            "ClOrdID": "ORIGCLORD1",
+            "ExecType": "1",
+            "OrdRejReason": "9527",
+            "OrdCnfmID": "x0001"
+          }
+        }
+      ]
+    }
+  ]
+}

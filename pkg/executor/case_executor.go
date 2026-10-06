@@ -167,7 +167,6 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 		step.TestDatas["MsgType"] = step.MsgType
 		expect, err := simulator.GetCodec().JSONToStruct(step.TestDatas)
 		if err != nil {
-			//TODO
 			log.Error("Expect JsonToStruct failed: ", err)
 			c.AddStepError(index, step.StepID, fmt.Errorf("build expected message: %w", err))
 			return
@@ -175,7 +174,6 @@ func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testca
 		step.SetExpect(expect)
 		actual, actualMsgType, err := simulator.Receive(e.receiveTimeout)
 		if err != nil {
-			//TODO
 			log.Error("Receive failed: ", err)
 			c.AddStepError(index, step.StepID, fmt.Errorf("receive failed: %w", err))
 			return

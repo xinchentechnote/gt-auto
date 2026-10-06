@@ -98,6 +98,33 @@ risk_001,order,new_order_001,1,oms send new order,Send,N,risk_bin_oms_1,100101,r
 - 查找不到 → 该步骤被跳过并 Warn（不会用空数据执行）。
 - Send 与 Receive 引用同一行：Receive 的期望值即"网关应原样转发/回执该报文"。
 
+### 3.3 JSON 用例格式（.json，数据内联）
+
+与 CSV 等价的替代格式：`testData` 对象直接内联在每个步骤里，**无需独立的数据 sheet 文件**，适合程序化生成用例。字段名与 CSV 列一一对应（驼峰式）；`msgType`/`sleepMs` 接受字符串或数字；`verifyRequired` 为布尔。示例见 `pkg/testcase/testdata/risk_test_case.json`：
+
+```json
+{
+  "cases": [
+    {
+      "caseId": "risk_001",
+      "caseTitle": "order",
+      "steps": [
+        {
+          "stepId": "new_order_001",
+          "sleepMs": 1,
+          "stepDesc": "oms send new order",
+          "actionType": "Send",
+          "verifyRequired": false,
+          "testTool": "risk_bin_oms_1",
+          "msgType": "100101",
+          "testData": {"ClOrdID": "c00001", "Side": "1"}
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## 4. 配置文件规范（TOML）
 
 ```toml
@@ -139,9 +166,9 @@ auto_start = false
 
 `tcp.CreateSimulator` 的 `config.Type` switch 加分支，实现 `Simulator[T]` 接口（重点是 `Ready` 的就绪语义与收发路径）。
 
-### 5.3 新增用例格式（JSON / Excel）
+### 5.3 新增用例格式（如 Excel）
 
-实现 `testcase.CaseParser` 接口，在 `LoadTestCases` 按扩展名挂接；产物为统一的 `[]*TestCase` 模型，下游无感知。
+实现 `testcase.CaseParser` 接口，在 `LoadTestCases` 按扩展名挂接；产物为统一的 `[]*TestCase` 模型，下游无感知。`JSONCaseParser` 是最简参考实现（纯标准库）；Excel（.xlsx）需要引入电子表格依赖（如 excelize），挂接点已预留。
 
 ## 6. 测试策略
 
