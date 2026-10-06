@@ -48,7 +48,7 @@ func (p *ExcelCaseParser) Parse() ([]*TestCase, error) {
 		rows = append(rows, padded)
 	}
 
-	return parseCaseRows(rows[1:], func(sheetName string) (map[string]map[string]interface{}, error) {
+	return parseCaseRows(rows[1:], func(sheetName string) (*sheetData, error) {
 		if sheetName == caseSheet {
 			return nil, fmt.Errorf("sheet %q is the case table, not a test data sheet", sheetName)
 		}
@@ -56,6 +56,6 @@ func (p *ExcelCaseParser) Parse() ([]*TestCase, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read sheet %s: %w", sheetName, err)
 		}
-		return recordsFromRows(sheetRows, fmt.Sprintf("sheet %q in %s", sheetName, p.FilePath))
+		return sheetFromRows(sheetRows, fmt.Sprintf("sheet %q in %s", sheetName, p.FilePath))
 	})
 }

@@ -16,27 +16,87 @@ import (
 // verify_required, test_tool, msg_type, test_data.
 const testCaseColumns = 10
 
-// sheetLoader loads one test data sheet by name, returning its records keyed
-// by StepId.
-type sheetLoader func(sheetName string) (map[string]map[string]interface{}, error)
+// refPrefix marks a data sheet cell whose value references another data
+// sheet (Excel) or file (CSV). The referenced content becomes the field's
+// nested value: a single object for a one-row sheet, an array of objects for
+// multiple rows. See docs/design.md for the format spec.
+const refPrefix = "@"
 
-// sheetCache loads every sheet at most once and keeps records isolated per
-// sheet so identical StepIds in different sheets cannot collide.
-type sheetCache map[string]map[string]map[string]interface{}
+// sheetLoader loads one test data sheet by name, preserving row order.
+type sheetLoader func(sheetName string) (*sheetData, error)
 
-func (c sheetCache) lookup(sheetName, stepID string, load sheetLoader) (map[string]interface{}, error) {
-	if _, loaded := c[sheetName]; !loaded {
-		data, err := load(sheetName)
-		if err != nil {
-			return nil, err
-		}
-		c[sheetName] = data
+// sheetCache loads every sheet at most once, resolves cross-sheet @
+// references (with cycle detection), and keeps sheets isolated so identical
+// StepIds in different sheets cannot collide.
+type sheetCache struct {
+	sheets map[string]*sheetData
+	load   sheetLoader
+}
+
+func newSheetCache(load sheetLoader) *sheetCache {
+	return &sheetCache{sheets: make(map[string]*sheetData), load: load}
+}
+
+// lookup returns the record of one step from the named sheet.
+func (c *sheetCache) lookup(sheetName, stepID string) (map[string]interface{}, error) {
+	sd, err := c.get(sheetName, nil)
+	if err != nil {
+		return nil, err
 	}
-	record, ok := c[sheetName][stepID]
+	record, ok := sd.byStep[stepID]
 	if !ok {
 		return nil, fmt.Errorf("step %s not found in test data sheet %s", stepID, sheetName)
 	}
 	return record, nil
+}
+
+// get loads and fully expands a sheet; chain carries the sheet names currently
+// being expanded for cycle detection.
+func (c *sheetCache) get(sheetName string, chain []string) (*sheetData, error) {
+	for _, name := range chain {
+		if name == sheetName {
+			cycle := strings.Join(append(append([]string{}, chain...), sheetName), " -> ")
+			return nil, fmt.Errorf("circular test data reference: %s", cycle)
+		}
+	}
+	if sd, ok := c.sheets[sheetName]; ok {
+		return sd, nil
+	}
+	raw, err := c.load(sheetName)
+	if err != nil {
+		return nil, err
+	}
+	sd, err := c.expandSheet(raw, sheetName, chain)
+	if err != nil {
+		return nil, err
+	}
+	c.sheets[sheetName] = sd
+	return sd, nil
+}
+
+// expandSheet replaces every "@sheet" cell value with the referenced sheet's
+// content: a single object for a one-row sheet, an array of objects for
+// multiple rows. Referenced sheets are expanded recursively before embedding.
+func (c *sheetCache) expandSheet(sd *sheetData, sheetName string, chain []string) (*sheetData, error) {
+	next := append(append([]string{}, chain...), sheetName)
+	for _, record := range sd.rows {
+		for key, value := range record {
+			ref, ok := value.(string)
+			if !ok || !strings.HasPrefix(ref, refPrefix) {
+				continue
+			}
+			refData, err := c.get(strings.TrimPrefix(ref, refPrefix), next)
+			if err != nil {
+				return nil, err
+			}
+			if len(refData.rows) == 1 {
+				record[key] = refData.rows[0]
+			} else {
+				record[key] = refData.rows
+			}
+		}
+	}
+	return sd, nil
 }
 
 // parseCaseRows turns case-table rows (header excluded) into test cases.
@@ -46,7 +106,7 @@ func (c sheetCache) lookup(sheetName, stepID string, load sheetLoader) (map[stri
 func parseCaseRows(rows [][]string, loadSheet sheetLoader) ([]*TestCase, error) {
 	var cases []*TestCase
 	var currentCase *TestCase
-	cache := sheetCache{}
+	cache := newSheetCache(loadSheet)
 
 	for _, record := range rows {
 		if isEmptyRow(record) {
@@ -79,7 +139,7 @@ func parseCaseRows(rows [][]string, loadSheet sheetLoader) ([]*TestCase, error) 
 			MsgType:        record[8],
 			TestData:       record[9],
 		}
-		data, err := cache.lookup(step.TestData, step.StepID, loadSheet)
+		data, err := cache.lookup(step.TestData, step.StepID)
 		if err != nil {
 			// Keep the step but mark it so the executor records a failure -
 			// dropping it here would let the case pass with missing steps.
@@ -128,8 +188,7 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 }
 
 // loadDataSheet reads one test data sheet file (<sheet><ext> next to the
-// case file) into records keyed by StepId.
-func (p *CSVCaseParser) loadDataSheet(sheetName string) (map[string]map[string]interface{}, error) {
-	dataFile := filepath.Join(filepath.Dir(p.FilePath), sheetName+filepath.Ext(p.FilePath))
-	return LoadCSVToMap(dataFile)
+// case file) preserving row order.
+func (p *CSVCaseParser) loadDataSheet(sheetName string) (*sheetData, error) {
+	return loadCSVSheet(filepath.Join(filepath.Dir(p.FilePath), sheetName+filepath.Ext(p.FilePath)))
 }

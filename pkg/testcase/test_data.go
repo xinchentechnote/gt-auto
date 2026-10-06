@@ -8,8 +8,24 @@ import (
 	"strings"
 )
 
-// LoadCSVToMap loads a CSV file and returns a map where the keys are the values in the first column
+// sheetData holds one loaded data sheet: rows in sheet order plus a StepId
+// index into them.
+type sheetData struct {
+	rows   []map[string]interface{}
+	byStep map[string]map[string]interface{}
+}
+
+// LoadCSVToMap loads a CSV data file into records keyed by the StepId column.
 func LoadCSVToMap(filePath string) (map[string]map[string]interface{}, error) {
+	sd, err := loadCSVSheet(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return sd.byStep, nil
+}
+
+// loadCSVSheet loads a CSV data file preserving the row order.
+func loadCSVSheet(filePath string) (*sheetData, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -31,20 +47,19 @@ func LoadCSVToMap(filePath string) (map[string]map[string]interface{}, error) {
 		rows = append(rows, row)
 	}
 
-	return recordsFromRows(rows, filePath)
+	return sheetFromRows(rows, filePath)
 }
 
-// recordsFromRows converts sheet rows (header row first) into records keyed
-// by the StepId column. Rows shorter than the header are padded with empty
-// strings - spreadsheets trim trailing empty cells - and fully empty rows are
-// skipped.
-func recordsFromRows(rows [][]string, source string) (map[string]map[string]interface{}, error) {
+// sheetFromRows converts sheet rows (header row first) into a sheetData.
+// Rows shorter than the header are padded with empty strings - spreadsheets
+// trim trailing empty cells - and fully empty rows are skipped.
+func sheetFromRows(rows [][]string, source string) (*sheetData, error) {
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("%s has no header row", source)
 	}
 	headers := rows[0]
 
-	records := make(map[string]map[string]interface{})
+	sd := &sheetData{byStep: make(map[string]map[string]interface{})}
 	for _, row := range rows[1:] {
 		if isEmptyRow(row) {
 			continue
@@ -68,10 +83,11 @@ func recordsFromRows(rows [][]string, source string) (map[string]map[string]inte
 		if !ok {
 			return nil, fmt.Errorf("%s has no StepId column", source)
 		}
-		records[stepID] = record
+		sd.rows = append(sd.rows, record)
+		sd.byStep[stepID] = record
 	}
 
-	return records, nil
+	return sd, nil
 }
 
 // isEmptyRow reports whether every cell in the row is empty.

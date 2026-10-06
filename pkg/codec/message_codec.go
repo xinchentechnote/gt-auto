@@ -154,6 +154,29 @@ func convertValue(input interface{}, targetType reflect.Type) (reflect.Value, er
 			err := ConvertMapToStruct(m, val.Addr().Interface())
 			return val, err
 		}
+	case reflect.Pointer:
+		// 支持嵌套指针 struct（如 []*PartitionReport 的元素）
+		if m, ok := input.(map[string]interface{}); ok {
+			val := reflect.New(targetType.Elem())
+			if err := ConvertMapToStruct(m, val.Interface()); err != nil {
+				return reflect.Value{}, err
+			}
+			return val, nil
+		}
+	case reflect.Slice:
+		// 支持嵌套列表：逐元素递归，保留字符串到数值等宽松转换；
+		// 非数组输入交给 JSON 解码 fallback
+		if arr, ok := input.([]interface{}); ok {
+			out := reflect.MakeSlice(targetType, 0, len(arr))
+			for _, item := range arr {
+				element, err := convertValue(item, targetType.Elem())
+				if err != nil {
+					return reflect.Value{}, fmt.Errorf("element: %w", err)
+				}
+				out = reflect.Append(out, element)
+			}
+			return out, nil
+		}
 	}
 
 	// 默认处理为 JSON 解码

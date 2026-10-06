@@ -95,8 +95,19 @@ risk_001,order,new_order_001,1,oms send new order,Send,N,risk_bin_oms_1,100101,r
 
 - 首行表头 = 报文字段名（须与 proto 结构体的 `json` tag 一致，如 `ClOrdID`、`UniqueOrigOrderID`）；**必须包含 `StepId` 列**作为行键。
 - 每行是一条完整的步骤数据；执行器按主用例的 `step_id` 在 sheet 中查找同名行。
-- 查找不到 → 该步骤被跳过并 Warn（不会用空数据执行）。
+- 查找不到 → 该步骤标记 `SkipReason`，执行时记为失败。
 - Send 与 Receive 引用同一行：Receive 的期望值即"网关应原样转发/回执该报文"。
+
+**跨文件嵌套**：数据表单元格值以 `@` 开头表示引用另一个数据文件（如 `Partition` 列填 `@parts` 引用 `parts.csv`）。被引用内容成为该字段的嵌套值——**1 行数据 → 嵌套对象，多行 → 对象数组**（行序即数组顺序）；引用可递归（带环检测，成环报错），被引用文件同样必须含 `StepId` 列（值任意，如 `p1`/`p2`）。例：
+
+```
+order.csv:  StepId,ClOrdID,Partition
+            s1,c0001,@parts        ← Partition 字段引用 parts.csv
+parts.csv:  StepId,PlatformID
+            p1,101
+            p2,202
+→ 展开后 TestDatas.Partition = [{PlatformID:101},{PlatformID:202}]，填充 []*PlatformPartition 等列表字段
+```
 
 ### 3.3 JSON 用例格式（.json，数据内联）
 
@@ -133,6 +144,8 @@ risk_001,order,new_order_001,1,oms send new order,Send,N,risk_bin_oms_1,100101,r
 - **其余 sheet 为数据表**：sheet 名即 `test_data` 引用值，首行为字段表头（必须含 `StepId` 列），行按 `StepId` 查找——与 CSV 的数据 sheet 文件布局一致。
 
 约定与容错：尾随空单元格自动补空；全空行跳过；引用不存在的数据 sheet 时该步骤保留并标记 `SkipReason`（执行时记为失败）；旧版 `.xls` 二进制格式不支持（用 excelize 另存为 `.xlsx`）。示例见 `pkg/testcase/testdata/risk_test_case.xlsx`。
+
+**跨 sheet 嵌套**：与 CSV 的跨文件嵌套同一约定——数据 sheet 单元格值以 `@` 开头引用同工作簿的另一个数据 sheet（如 `Partition` 列填 `@parts`），1 行 → 嵌套对象、多行 → 对象数组，递归 + 环检测。
 
 ## 4. 配置文件规范（TOML）
 
@@ -205,4 +218,4 @@ auto_start = false
 | TGW 多客户端 | Send 发往最近接受的连接 | 按客户端路由 |
 | communication 字段 | 仅 tcp 实现 | udp / http |
 | 协议覆盖 | risk / szse-bin / sse-bin | STEP(SZSE/SSE)、FIX、IMIX、Protobuf（见 readme 路线图） |
-| `ConvertMapToStruct` | 不支持 slice 字段 | 需要时在 `convertValue` 补充 |
+| 嵌套/列表字段 | 已支持：`@` 跨 sheet/文件引用（对象/数组）、JSON 内联嵌套，`convertValue` 逐元素宽松转换（含指针元素） | 接口类型字段（如 `ApplExtend`）仍走 ApplID 注册表机制 |

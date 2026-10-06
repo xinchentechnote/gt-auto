@@ -95,10 +95,10 @@ func TestFindTestDataSheetIsolation(t *testing.T) {
 	write("sheetB.csv", "StepId,ClOrdID\nshared,from_b\n")
 
 	parser := &CSVCaseParser{FilePath: filepath.Join(dir, "case.csv")}
-	cache := sheetCache{}
-	a, err := cache.lookup("sheetA", "shared", parser.loadDataSheet)
+	cache := newSheetCache(parser.loadDataSheet)
+	a, err := cache.lookup("sheetA", "shared")
 	assert.NoError(t, err)
-	b, err := cache.lookup("sheetB", "shared", parser.loadDataSheet)
+	b, err := cache.lookup("sheetB", "shared")
 	assert.NoError(t, err)
 	assert.Equal(t, "from_a", a["ClOrdID"])
 	assert.Equal(t, "from_b", b["ClOrdID"])
@@ -106,8 +106,8 @@ func TestFindTestDataSheetIsolation(t *testing.T) {
 
 func TestFindTestDataStepNotFound(t *testing.T) {
 	parser := &CSVCaseParser{FilePath: filepath.Join("testdata", "risk_test_case.csv")}
-	cache := sheetCache{}
-	_, err := cache.lookup("risk_100101", "no_such_step", parser.loadDataSheet)
+	cache := newSheetCache(parser.loadDataSheet)
+	_, err := cache.lookup("risk_100101", "no_such_step")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no_such_step")
 }
