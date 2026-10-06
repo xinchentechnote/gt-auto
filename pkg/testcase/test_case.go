@@ -17,6 +17,10 @@ type TestStep struct {
 	TestDatas      map[string]any
 	Expect         any
 	actual         any
+	// SkipReason is non-empty when the parser could not fully build the step
+	// (e.g. its test data could not be resolved); the executor records such
+	// steps as failures instead of dropping them.
+	SkipReason string
 }
 
 // SetActual set receive actual data

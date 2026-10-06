@@ -79,10 +79,13 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 		}
 		data, err := p.findTestData(step.TestData, step.StepID)
 		if err != nil {
-			log.Warnf("Skipping step %s: cannot load test data %s: %v", step.StepID, step.TestData, err)
-			continue
+			// Keep the step but mark it so the executor records a failure -
+			// dropping it here would let the case pass with missing steps.
+			log.Warnf("Step %s will fail: cannot load test data %s: %v", step.StepID, step.TestData, err)
+			step.SkipReason = err.Error()
+		} else {
+			step.TestDatas = data
 		}
-		step.TestDatas = data
 		currentCase.Steps = append(currentCase.Steps, step)
 	}
 	return cases, nil

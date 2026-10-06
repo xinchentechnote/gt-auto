@@ -10,7 +10,7 @@ Scriptable simulators replace the real OMS and exchange side, so the gateway und
 - **Protocol simulators**: an OMS-side TCP client and a TGW-side TCP server, currently speaking the risk-control, SZSE and SSE binary protocols.
 - **CSV-driven test cases**: orchestrate multi-step message flows (send order -> receive confirm -> verify) without writing code.
 - **Field-level validation**: expected vs. actual messages are compared with go-cmp; differences are rendered as a table (path / expected / actual).
-- **Trustworthy results**: every step failure - simulator unavailable, receive timeout, unexpected message type, bad test data - is recorded and fails the run with a non-zero exit code, so CI can judge the outcome directly.
+- **Trustworthy results**: every step failure - simulator unavailable, receive timeout, unexpected message type, bad test data - is recorded and fails the run with a non-zero exit code, so CI can judge the outcome directly; a structured JSON report (summary, step results, field-level diffs) is written after every run.
 - **Robust by design**: disconnects, silent gateways and malformed inputs produce clear errors instead of panics or hangs; the whole test suite runs under `-race`.
 
 ## Documentation
@@ -33,6 +33,8 @@ Run a test case (see the shipped samples under `pkg/testcase/testdata/` and `pkg
   --casePath pkg/testcase/testdata/risk_test_case.csv \
   --config   pkg/config/testdata/gw-auto-risk.toml
 # exit code 0 = all steps passed; 1 = at least one step failed
+# a JSON report is written after the run (default gt-auto-report.json,
+# customize or disable with --report)
 ```
 
 A test case CSV orchestrates steps against simulators defined in the TOML config. A typical flow is four steps: OMS sends a new order, TGW receives and verifies it, TGW sends the confirmation, OMS receives and verifies it. See the [design doc](docs/design.md) for the full format spec.

@@ -26,3 +26,5 @@ go.work.sum
 bin/
 tmp.txt
 .idea
+# test run report output
+gt-auto-report.json

@@ -214,6 +214,7 @@ sequenceDiagram
 
 - 每个步骤产生一条 `StepValidateResult`：`Passed`（比对通过）、`Detail`（`CompareResult`：字段级 `Diffs` + 文本 `DiffInfo`）、`Error`（步骤无法执行的原因）。
 - `showResult` 逐用例输出：✅ 通过 / ❌ 比对差异（表格：Path/Expected/Actual）/ ❌ 步骤错误（原因）。
+- `--report` 参数控制 JSON 报告落盘（默认 `gt-auto-report.json`，传空禁用）：包含运行起止时间/耗时、汇总计数、每个用例下每条步骤结果（通过、执行错误原因、字段级差异），供归档与 CI 产物上传。
 - `RunSummary{TotalCases, TotalSteps, PassedSteps, FailedSteps}` 打印到日志；`FailedSteps > 0` 时进程以 **exit code 1** 结束，CI 可直接判定结果。
 - 配置/用例加载失败：错误经 cli 输出并以非零码退出（不 panic）。
 

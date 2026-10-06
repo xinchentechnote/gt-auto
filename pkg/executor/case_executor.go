@@ -31,6 +31,8 @@ type CaseExecutor struct {
 	Config         config.GwAutoConfig
 	simulatorMap   map[string]tcp.Simulator[codec.BinaryCodec]
 	receiveTimeout time.Duration
+	startedAt      time.Time
+	finishedAt     time.Time
 }
 
 // NewCaseExecutor creates a new CaseExecutor instance.
@@ -94,6 +96,8 @@ type RunSummary struct {
 
 // Execute runs the test cases and returns a run summary.
 func (e *CaseExecutor) Execute() RunSummary {
+	e.startedAt = time.Now()
+	defer func() { e.finishedAt = time.Now() }()
 	if e.Cases == nil {
 		return RunSummary{}
 	}
@@ -148,6 +152,12 @@ func (e *CaseExecutor) executeCase(index int, c *testcase.TestCase) {
 
 func (e *CaseExecutor) executeStep(index int, c *testcase.TestCase, step *testcase.TestStep) {
 	log.Infof("Start to execute step: %d, %s\n", index, step.StepID)
+	if step.SkipReason != "" {
+		err := fmt.Errorf("step skipped: %s", step.SkipReason)
+		log.Error(err)
+		c.AddStepError(index, step.StepID, err)
+		return
+	}
 	simulator, err := e.getOrStartSimulator(step.TestTool)
 	if err != nil {
 		log.Errorf("Step %d-%s cannot run: %v", index, step.StepID, err)

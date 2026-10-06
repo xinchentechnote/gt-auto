@@ -219,6 +219,34 @@ func TestExecuteStepValidatesReceivedMsgType(t *testing.T) {
 	}
 }
 
+// TestExecuteStepRecordsSkippedStep verifies a step the parser marked as
+// unresolvable is recorded as a failure without touching any simulator.
+func TestExecuteStepRecordsSkippedStep(t *testing.T) {
+	e := &CaseExecutor{receiveTimeout: time.Second}
+	c := &testcase.TestCase{
+		CaseID: "c1",
+		Steps: []testcase.TestStep{{
+			StepID:     "s1",
+			TestTool:   "tool",
+			ActionType: "Send",
+			SkipReason: "step s1 not found in test data file data.csv",
+		}},
+	}
+	e.simulatorMap = map[string]tcp.Simulator[fin_codec.BinaryCodec]{}
+	e.executeStep(0, c, &c.Steps[0])
+
+	if len(c.ValidateResults) != 1 {
+		t.Fatalf("expected 1 validate result, got %d", len(c.ValidateResults))
+	}
+	result := c.ValidateResults[0]
+	if result.Passed {
+		t.Fatal("expected skipped step to be marked as failed")
+	}
+	if !strings.Contains(result.Error, "step skipped") {
+		t.Fatalf("expected skip reason in error, got: %s", result.Error)
+	}
+}
+
 // TestExecuteStepRecordsUnavailableSimulator verifies a step whose test tool
 // cannot be created is recorded as a failed result instead of being skipped.
 func TestExecuteStepRecordsUnavailableSimulator(t *testing.T) {

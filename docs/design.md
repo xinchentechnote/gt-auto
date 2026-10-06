@@ -49,7 +49,7 @@
 | 包装错误必须包装**真实原因**，用 `%w` 保持 `errors.Is/As` 链路 | 三个 framer、`receive0`（曾包装 nil 变量丢失原因） |
 | 外部输入（CSV、JSON map）不允许裸类型断言，缺失/错型返回明确错误 | `msgTypeFromMap`、`LoadCSVToMap`、用例行长度检查 |
 | 连接不可恢复错误（EOF/UnexpectedEOF/ErrClosed）终止接收循环，单条解码失败仅跳过 | `receiveLoop` / `handleClient` |
-| 步骤无法执行 ≠ 静默跳过：一律 `AddStepError` 落入报告 | `executeStep` 全部分支 |
+| 步骤无法执行 ≠ 静默跳过：一律 `AddStepError` 落入报告 | `executeStep` 全部分支；解析器对无法构建的步骤保留并标记 `SkipReason`，由执行器记为失败 |
 
 ### D7. 测试数据按 sheet 缓存
 
@@ -191,7 +191,7 @@ auto_start = false
 | 项 | 现状 | 方向 |
 |---|---|---|
 | Receive 只做 MsgType 快速失败 | 不匹配即失败 | 支持"按类型过滤等待 + 暂存"，适配心跳/多路消息 |
-| 测试报告仅 stdout 日志 | 无落盘 | 生成结构化报告文件（JSON/HTML），main 中"Save the report" TODO |
+| 报告格式 | JSON 落盘已实现（`--report`，默认 `gt-auto-report.json`） | HTML 报告 |
 | OMS 无重连 | 断连后步骤失败可见 | 增加可配置重连 |
 | TGW 多客户端 | Send 发往最近接受的连接 | 按客户端路由 |
 | communication 字段 | 仅 tcp 实现 | udp / http |

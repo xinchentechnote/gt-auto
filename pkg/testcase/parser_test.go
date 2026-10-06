@@ -111,8 +111,8 @@ func TestFindTestDataStepNotFound(t *testing.T) {
 }
 
 // TestParseMissingTestDataStep verifies a step whose test data cannot be
-// resolved is skipped with an error instead of being appended with a nil
-// TestDatas map (which would panic later on assignment in the executor).
+// resolved is kept with a SkipReason (the executor turns it into a failure)
+// instead of being silently dropped.
 func TestParseMissingTestDataStep(t *testing.T) {
 	dir := t.TempDir()
 	caseFile := filepath.Join(dir, "case.csv")
@@ -129,6 +129,12 @@ func TestParseMissingTestDataStep(t *testing.T) {
 	cases, err := parser.Parse()
 	assert.NoError(t, err)
 	assert.Len(t, cases, 1)
-	assert.Len(t, cases[0].Steps, 1, "step with unresolvable test data should be skipped")
-	assert.Equal(t, "step_001", cases[0].Steps[0].StepID)
+	assert.Len(t, cases[0].Steps, 2, "unresolvable step must not be dropped")
+	resolved, missing := cases[0].Steps[0], cases[0].Steps[1]
+	assert.Equal(t, "step_001", resolved.StepID)
+	assert.Empty(t, resolved.SkipReason)
+	assert.NotNil(t, resolved.TestDatas)
+	assert.Equal(t, "step_missing", missing.StepID)
+	assert.Contains(t, missing.SkipReason, "step_missing not found in test data file")
+	assert.Nil(t, missing.TestDatas)
 }
