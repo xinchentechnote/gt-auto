@@ -18,16 +18,16 @@ func writeCSV(t *testing.T, dir, name, content string) {
 }
 
 // TestCrossFileNestedReferences verifies a CSV data sheet can nest another
-// file's content via the @file reference: one row becomes an object, several
-// rows become an array of objects.
+// file's content via the @file reference: "@name" is an object (one row),
+// "@name[]" an array of all rows.
 func TestCrossFileNestedReferences(t *testing.T) {
 	dir := t.TempDir()
 	writeCSV(t, dir, "case.csv",
 		"case_id,case_title,step_id,sleep_ms,step_desc,action_type,verify_required,test_tool,msg_type,test_data\n"+
 			"c1,title,s1,1,d,Send,N,tool,100101,order\n")
 	writeCSV(t, dir, "order.csv",
-		"StepId,ClOrdID,Partition,Single\n"+
-			"s1,c0001,@parts,@single\n")
+		"StepId,ClOrdID,Partition,Single,SingleAsArray\n"+
+			"s1,c0001,@parts[],@single,@single[]\n")
 	writeCSV(t, dir, "parts.csv",
 		"StepId,PlatformID\n"+
 			"p1,101\n"+
@@ -43,14 +43,40 @@ func TestCrossFileNestedReferences(t *testing.T) {
 	assert.Equal(t, "c0001", data["ClOrdID"])
 
 	partition, ok := data["Partition"].([]map[string]interface{})
-	assert.True(t, ok, "multi-row reference should expand to an array, got %T", data["Partition"])
+	assert.True(t, ok, "array reference should expand to an array, got %T", data["Partition"])
 	assert.Len(t, partition, 2)
 	assert.Equal(t, "101", partition[0]["PlatformID"])
 	assert.Equal(t, "202", partition[1]["PlatformID"])
 
 	single, ok := data["Single"].(map[string]interface{})
-	assert.True(t, ok, "one-row reference should expand to an object, got %T", data["Single"])
+	assert.True(t, ok, "object reference should expand to an object, got %T", data["Single"])
 	assert.Equal(t, "999", single["StopPx"])
+
+	asArray, ok := data["SingleAsArray"].([]map[string]interface{})
+	assert.True(t, ok, "array reference to a one-row sheet should be a single-element array, got %T", data["SingleAsArray"])
+	assert.Len(t, asArray, 1)
+}
+
+// TestCrossFileNestedReferenceShapeErrors verifies the object reference
+// rejects multi-row and empty sheets with guidance, instead of guessing.
+func TestCrossFileNestedReferenceShapeErrors(t *testing.T) {
+	dir := t.TempDir()
+	writeCSV(t, dir, "case.csv",
+		"case_id,case_title,step_id,sleep_ms,step_desc,action_type,verify_required,test_tool,msg_type,test_data\n"+
+			"c1,title,s_multi,1,d,Send,N,tool,100101,order_multi\n"+
+			",,s_empty,1,d,Send,N,tool,100101,order_empty\n")
+	writeCSV(t, dir, "order_multi.csv", "StepId,Multi\ns_multi,@multi\n")
+	writeCSV(t, dir, "order_empty.csv", "StepId,Empty\ns_empty,@empty\n")
+	writeCSV(t, dir, "multi.csv", "StepId,X\nr1,1\nr2,2\n")
+	writeCSV(t, dir, "empty.csv", "StepId,X\n")
+
+	cases, err := (&CSVCaseParser{FilePath: filepath.Join(dir, "case.csv")}).Parse()
+	assert.NoError(t, err)
+	steps := cases[0].Steps
+	assert.Len(t, steps, 2)
+	assert.Contains(t, steps[0].SkipReason, `referenced test data sheet "multi" has 2 rows`)
+	assert.Contains(t, steps[0].SkipReason, `use "@multi[]" for an array`)
+	assert.Contains(t, steps[1].SkipReason, `referenced test data sheet "empty" is empty`)
 }
 
 // TestCrossFileNestedReferenceCycle verifies circular references fail the
@@ -98,7 +124,7 @@ func TestCrossSheetNestedReferences(t *testing.T) {
 	}
 	_, _ = f.NewSheet("order")
 	assert.NoError(t, f.SetSheetRow("order", "A1", &[]any{"StepId", "ClOrdID", "Partition"}))
-	assert.NoError(t, f.SetSheetRow("order", "A2", &[]any{"s1", "c0001", "@parts"}))
+	assert.NoError(t, f.SetSheetRow("order", "A2", &[]any{"s1", "c0001", "@parts[]"}))
 	_, err := f.NewSheet("parts")
 	assert.NoError(t, err)
 	assert.NoError(t, f.SetSheetRow("parts", "A1", &[]any{"StepId", "PlatformID"}))

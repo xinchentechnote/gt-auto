@@ -18,9 +18,12 @@ const testCaseColumns = 10
 
 // refPrefix marks a data sheet cell whose value references another data
 // sheet (Excel) or file (CSV). The referenced content becomes the field's
-// nested value: a single object for a one-row sheet, an array of objects for
-// multiple rows. See docs/design.md for the format spec.
+// nested value: "@sheet" is an object (exactly one data row), "@sheet[]" is
+// an array of all rows. See docs/design.md for the format spec.
 const refPrefix = "@"
+
+// refArraySuffix selects array mode in a data sheet reference.
+const refArraySuffix = "[]"
 
 // sheetLoader loads one test data sheet by name, preserving row order.
 type sheetLoader func(sheetName string) (*sheetData, error)
@@ -74,9 +77,11 @@ func (c *sheetCache) get(sheetName string, chain []string) (*sheetData, error) {
 	return sd, nil
 }
 
-// expandSheet replaces every "@sheet" cell value with the referenced sheet's
-// content: a single object for a one-row sheet, an array of objects for
-// multiple rows. Referenced sheets are expanded recursively before embedding.
+// expandSheet replaces every "@sheet" / "@sheet[]" cell value with the
+// referenced sheet's content. The spelling decides the shape: "@sheet" is an
+// object and requires exactly one data row; "@sheet[]" is an array of all
+// rows (including single-element and empty arrays). Referenced sheets are
+// expanded recursively before embedding.
 func (c *sheetCache) expandSheet(sd *sheetData, sheetName string, chain []string) (*sheetData, error) {
 	next := append(append([]string{}, chain...), sheetName)
 	for _, record := range sd.rows {
@@ -85,14 +90,24 @@ func (c *sheetCache) expandSheet(sd *sheetData, sheetName string, chain []string
 			if !ok || !strings.HasPrefix(ref, refPrefix) {
 				continue
 			}
-			refData, err := c.get(strings.TrimPrefix(ref, refPrefix), next)
+			name := strings.TrimPrefix(ref, refPrefix)
+			arrayMode := strings.HasSuffix(name, refArraySuffix)
+			name = strings.TrimSuffix(name, refArraySuffix)
+
+			refData, err := c.get(name, next)
 			if err != nil {
 				return nil, err
 			}
-			if len(refData.rows) == 1 {
-				record[key] = refData.rows[0]
-			} else {
+			switch {
+			case arrayMode:
 				record[key] = refData.rows
+			case len(refData.rows) == 1:
+				record[key] = refData.rows[0]
+			case len(refData.rows) == 0:
+				return nil, fmt.Errorf("referenced test data sheet %q is empty", name)
+			default:
+				return nil, fmt.Errorf("referenced test data sheet %q has %d rows; use \"@%s[]\" for an array",
+					name, len(refData.rows), name)
 			}
 		}
 	}
