@@ -127,3 +127,87 @@ func TestWriteReport(t *testing.T) {
 		t.Fatalf("unexpected decoded summary: %+v", decoded.Summary)
 	}
 }
+
+// failingReportFixture builds a report containing one failing step with an
+// execution error and a structured field diff.
+func failingReportFixture() Report {
+	return Report{
+		Summary: RunSummary{TotalCases: 1, TotalSteps: 1, FailedSteps: 1},
+		Cases: []CaseReport{{
+			CaseID:    "c_fail",
+			CaseTitle: "failing case",
+			Passed:    false,
+			Steps: []StepReport{{
+				Index:  1,
+				StepID: "s1",
+				Passed: false,
+				Error:  "received MsgType 999999, expected 200102",
+				Diffs: []DiffReport{{
+					Path:   "ClOrdID",
+					Expect: map[string]any{"ClOrdID": "want"},
+					Actual: map[string]any{"ClOrdID": "got"},
+				}},
+			}},
+		}},
+	}
+}
+
+func TestWriteHTMLReport(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested", "report.html")
+	if err := WriteHTMLReport(failingReportFixture(), path); err != nil {
+		t.Fatalf("WriteHTMLReport failed: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read report: %v", err)
+	}
+	text := string(data)
+	for _, want := range []string{
+		"<!DOCTYPE html>",
+		"GT-Auto 测试报告",
+		"c_fail",
+		"failing case",
+		"s1",
+		"received MsgType 999999, expected 200102",
+		"ClOrdID",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("HTML report missing %q", want)
+		}
+	}
+}
+
+func TestWriteReportFormatByExtension(t *testing.T) {
+	dir := t.TempDir()
+
+	jsonPath := filepath.Join(dir, "r.json")
+	if err := WriteReport(Report{}, jsonPath); err != nil {
+		t.Fatalf("json report failed: %v", err)
+	}
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, new(Report)); err != nil {
+		t.Fatalf("expected JSON content, got: %v", err)
+	}
+
+	htmlPath := filepath.Join(dir, "r.HTML")
+	if err := WriteReport(failingReportFixture(), htmlPath); err != nil {
+		t.Fatalf("html report failed: %v", err)
+	}
+	data, err = os.ReadFile(htmlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "<!DOCTYPE html>") {
+		t.Fatal("expected HTML content")
+	}
+
+	err = WriteReport(Report{}, filepath.Join(dir, "r.txt"))
+	if err == nil || !strings.Contains(err.Error(), "unsupported report format") {
+		t.Fatalf("expected unsupported-format error, got: %v", err)
+	}
+}

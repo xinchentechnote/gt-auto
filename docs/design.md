@@ -191,7 +191,7 @@ auto_start = false
 | 项 | 现状 | 方向 |
 |---|---|---|
 | Receive 只做 MsgType 快速失败 | 不匹配即失败 | 支持"按类型过滤等待 + 暂存"，适配心跳/多路消息 |
-| 报告格式 | JSON 落盘已实现（`--report`，默认 `gt-auto-report.json`） | HTML 报告 |
+| 报告格式 | JSON 与 HTML 均已落地（`--report` 按扩展名分发、可重复传多份） | — |
 | OMS 无重连 | 断连后步骤失败可见 | 增加可配置重连 |
 | TGW 多客户端 | Send 发往最近接受的连接 | 按客户端路由 |
 | communication 字段 | 仅 tcp 实现 | udp / http |

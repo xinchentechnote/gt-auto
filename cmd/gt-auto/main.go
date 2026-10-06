@@ -40,10 +40,10 @@ func main() {
 				Name:     "config",
 				Usage:    "Path to the configuration file",
 				Required: true,
-			}, &cli.StringFlag{
+			}, &cli.StringSliceFlag{
 				Name:  "report",
-				Usage: "Path to write the JSON test report (empty disables)",
-				Value: "gt-auto-report.json",
+				Usage: "Report file(s) to write; format follows the extension (.json or .html); repeatable, empty disables",
+				Value: cli.NewStringSlice("gt-auto-report.json"),
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -65,8 +65,12 @@ func main() {
 			summary := caseExecutor.Execute()
 			log.Infof("Run summary: %d case(s), %d step(s): %d passed, %d failed",
 				summary.TotalCases, summary.TotalSteps, summary.PassedSteps, summary.FailedSteps)
-			if reportPath := c.String("report"); reportPath != "" {
-				if err := executor.WriteReport(caseExecutor.BuildReport(), reportPath); err != nil {
+			runReport := caseExecutor.BuildReport()
+			for _, reportPath := range c.StringSlice("report") {
+				if reportPath == "" {
+					continue
+				}
+				if err := executor.WriteReport(runReport, reportPath); err != nil {
 					return fmt.Errorf("failed to write report: %w", err)
 				}
 				log.Infof("Report written to %s", reportPath)

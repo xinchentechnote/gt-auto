@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -86,9 +87,22 @@ func (e *CaseExecutor) BuildReport() Report {
 	return report
 }
 
-// WriteReport marshals the report as indented JSON and writes it to path,
-// creating parent directories as needed.
+// WriteReport writes the report to path, choosing the format by file
+// extension: .json for indented JSON, .html/.htm for a self-contained HTML
+// page. Any other extension is an error so typos fail fast.
 func WriteReport(report Report, path string) error {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".json":
+		return writeJSONReport(report, path)
+	case ".html", ".htm":
+		return WriteHTMLReport(report, path)
+	default:
+		return fmt.Errorf("unsupported report format %q: use .json or .html", filepath.Ext(path))
+	}
+}
+
+// writeJSONReport marshals the report as indented JSON and writes it to path.
+func writeJSONReport(report Report, path string) error {
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal report: %w", err)
