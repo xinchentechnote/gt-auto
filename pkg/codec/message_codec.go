@@ -53,7 +53,7 @@ type MessageCodec interface {
 // ConvertMapToStruct converts a map to a struct.
 func ConvertMapToStruct(data map[string]interface{}, target interface{}) error {
 	v := reflect.ValueOf(target)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return fmt.Errorf("target must be a non-nil pointer to struct")
 	}
 	v = v.Elem()

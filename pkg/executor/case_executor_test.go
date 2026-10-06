@@ -62,7 +62,7 @@ func TestInitSimulatorHonorsAutoStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to bind dummy listener: %v", err)
 	}
-	defer lis.Close()
+	defer func() { _ = lis.Close() }()
 
 	conf := config.GwAutoConfig{
 		Simulators: []config.SimulatorConfig{
@@ -72,7 +72,7 @@ func TestInitSimulatorHonorsAutoStart(t *testing.T) {
 	}
 	conf.InitConfigMap()
 	e := NewCaseExecutor(conf, nil)
-	defer e.simulatorMap["tgw_auto"].Close()
+	defer func() { _ = e.simulatorMap["tgw_auto"].Close() }()
 
 	if _, ok := e.simulatorMap["tgw_auto"]; !ok {
 		t.Fatal("auto_start simulator should be started during init")

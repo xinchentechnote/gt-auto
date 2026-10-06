@@ -46,7 +46,7 @@ func TestOmsReceiveLoopExitsWhenConnCloses(t *testing.T) {
 		close(done)
 	}()
 
-	client.Close()
+	_ = client.Close()
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
@@ -70,7 +70,7 @@ func TestTgwHandleClientExitsWhenClientCloses(t *testing.T) {
 		close(done)
 	}()
 
-	client.Close()
+	_ = client.Close()
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
@@ -202,7 +202,7 @@ func TestTgwCloseClosesClientConn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client dial failed: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Wait for the server side to register the connection.
 	deadline = time.Now().Add(2 * time.Second)

@@ -204,7 +204,7 @@ func (sim *TgwSimulator[T]) Start() error {
 	log.Printf("TGW server started on %s", sim.ListenAddress)
 	go func() {
 		<-sim.stopChan
-		listener.Close()
+		_ = listener.Close()
 	}()
 
 	for {
@@ -228,7 +228,7 @@ func (sim *TgwSimulator[T]) Start() error {
 
 // Handle incoming client connections and put messages in the queue
 func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	for {
 		data, err := sim.Framer.ReadFrame(conn)
@@ -329,7 +329,7 @@ func (sim *TgwSimulator[T]) Close() error {
 	conn := sim.conn
 	sim.connMu.Unlock()
 	if conn != nil {
-		conn.Close()
+		_ = conn.Close() // best-effort shutdown; the peer sees the disconnect
 	}
 	return nil
 }

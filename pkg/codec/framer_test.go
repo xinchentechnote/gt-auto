@@ -27,8 +27,8 @@ func TestFramersReadFrameTruncatedBody(t *testing.T) {
 
 			server, client := net.Pipe()
 			go func() {
-				client.Write(head)
-				client.Close()
+				_, _ = client.Write(head)
+				_ = client.Close()
 			}()
 
 			_, err := tt.framer.ReadFrame(server)

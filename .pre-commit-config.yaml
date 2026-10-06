@@ -1,14 +1,8 @@
+# Lint (incl. gofmt via .golangci.yml formatters) runs through the official
+# golangci-lint pre-commit hook; build and tests run in CI.
+# See https://golangci-lint.run/usage/install/#pre-commit-hooks
 repos:
-  - repo: git@github.com:dnephin/pre-commit-golang.git
-    rev: v0.5.1 
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.14.0
     hooks:
-      - id: go-fmt
-      # - id: go-vet
-      - id: go-lint
-      - id: go-imports
-      # - id: validate-toml
-      # - id: no-go-testing
       - id: golangci-lint
-      - id: go-unit-tests
-      - id: go-build
-      - id: go-mod-tidy
