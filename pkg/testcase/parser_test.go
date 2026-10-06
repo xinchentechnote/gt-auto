@@ -95,9 +95,10 @@ func TestFindTestDataSheetIsolation(t *testing.T) {
 	write("sheetB.csv", "StepId,ClOrdID\nshared,from_b\n")
 
 	parser := &CSVCaseParser{FilePath: filepath.Join(dir, "case.csv")}
-	a, err := parser.findTestData("sheetA", "shared")
+	cache := sheetCache{}
+	a, err := cache.lookup("sheetA", "shared", parser.loadDataSheet)
 	assert.NoError(t, err)
-	b, err := parser.findTestData("sheetB", "shared")
+	b, err := cache.lookup("sheetB", "shared", parser.loadDataSheet)
 	assert.NoError(t, err)
 	assert.Equal(t, "from_a", a["ClOrdID"])
 	assert.Equal(t, "from_b", b["ClOrdID"])
@@ -105,7 +106,8 @@ func TestFindTestDataSheetIsolation(t *testing.T) {
 
 func TestFindTestDataStepNotFound(t *testing.T) {
 	parser := &CSVCaseParser{FilePath: filepath.Join("testdata", "risk_test_case.csv")}
-	_, err := parser.findTestData("risk_100101", "no_such_step")
+	cache := sheetCache{}
+	_, err := cache.lookup("risk_100101", "no_such_step", parser.loadDataSheet)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no_such_step")
 }
@@ -135,6 +137,6 @@ func TestParseMissingTestDataStep(t *testing.T) {
 	assert.Empty(t, resolved.SkipReason)
 	assert.NotNil(t, resolved.TestDatas)
 	assert.Equal(t, "step_missing", missing.StepID)
-	assert.Contains(t, missing.SkipReason, "step_missing not found in test data file")
+	assert.Contains(t, missing.SkipReason, "step_missing not found in test data sheet")
 	assert.Nil(t, missing.TestDatas)
 }

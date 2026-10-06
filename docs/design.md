@@ -125,6 +125,15 @@ risk_001,order,new_order_001,1,oms send new order,Send,N,risk_bin_oms_1,100101,r
 }
 ```
 
+### 3.4 Excel 用例格式（.xlsx，单工作簿）
+
+单工作簿承载全部内容，布局与 CSV 完全对应：
+
+- **第一个 sheet 为用例表**：与 CSV 主文件相同的 10 列表头与填法（`case_id` 非空开新用例）；
+- **其余 sheet 为数据表**：sheet 名即 `test_data` 引用值，首行为字段表头（必须含 `StepId` 列），行按 `StepId` 查找——与 CSV 的数据 sheet 文件布局一致。
+
+约定与容错：尾随空单元格自动补空；全空行跳过；引用不存在的数据 sheet 时该步骤保留并标记 `SkipReason`（执行时记为失败）；旧版 `.xls` 二进制格式不支持（用 excelize 另存为 `.xlsx`）。示例见 `pkg/testcase/testdata/risk_test_case.xlsx`。
+
 ## 4. 配置文件规范（TOML）
 
 ```toml
@@ -166,9 +175,9 @@ auto_start = false
 
 `tcp.CreateSimulator` 的 `config.Type` switch 加分支，实现 `Simulator[T]` 接口（重点是 `Ready` 的就绪语义与收发路径）。
 
-### 5.3 新增用例格式（如 Excel）
+### 5.3 新增用例格式
 
-实现 `testcase.CaseParser` 接口，在 `LoadTestCases` 按扩展名挂接；产物为统一的 `[]*TestCase` 模型，下游无感知。`JSONCaseParser` 是最简参考实现（纯标准库）；Excel（.xlsx）需要引入电子表格依赖（如 excelize），挂接点已预留。
+实现 `testcase.CaseParser` 接口，在 `LoadTestCases` 按扩展名挂接；产物为统一的 `[]*TestCase` 模型，下游无感知。行→步骤构建（`parseCaseRows`）与数据表查找（`sheetCache.lookup` / `recordsFromRows`）已抽为共享核心，表格式新格式（如 Google Sheets 导出）可直接复用；`JSONCaseParser` 是内联数据格式的参考实现。
 
 ## 6. 测试策略
 

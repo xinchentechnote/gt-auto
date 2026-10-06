@@ -8,7 +8,7 @@ Scriptable simulators replace the real OMS and exchange side, so the gateway und
 
 ## Features
 - **Protocol simulators**: an OMS-side TCP client and a TGW-side TCP server, currently speaking the risk-control, SZSE and SSE binary protocols.
-- **CSV-driven test cases**: orchestrate multi-step message flows (send order -> receive confirm -> verify) without writing code.
+- **Multi-format test cases**: drive flows (send order -> receive confirm -> verify) from CSV, Excel (.xlsx) or JSON - no code required.
 - **Field-level validation**: expected vs. actual messages are compared with go-cmp; differences are rendered as a table (path / expected / actual).
 - **Trustworthy results**: every step failure - simulator unavailable, receive timeout, unexpected message type, bad test data - is recorded and fails the run with a non-zero exit code, so CI can judge the outcome directly; a structured report (JSON/HTML, with summary, step results and field-level diffs) is written after every run.
 - **Robust by design**: disconnects, silent gateways and malformed inputs produce clear errors instead of panics or hangs; the whole test suite runs under `-race`.

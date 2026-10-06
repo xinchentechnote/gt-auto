@@ -11,44 +11,46 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// CSVCaseParser implements the CaseParser interface for CSV files.
-type CSVCaseParser struct {
-	FilePath string
-	// sheetCache maps a test data sheet name to its records keyed by StepId,
-	// so each sheet file is read at most once and identical StepIds in
-	// different sheets cannot collide.
-	sheetCache map[string]map[string]map[string]interface{}
-}
-
 // testCaseColumns is the number of columns the test case CSV schema defines:
 // case_id, case_title, step_id, sleep_ms, step_desc, action_type,
 // verify_required, test_tool, msg_type, test_data.
 const testCaseColumns = 10
 
-// Parse parses CSV data and returns test cases.
-func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
-	file, err := os.Open(p.FilePath)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = file.Close() }()
+// sheetLoader loads one test data sheet by name, returning its records keyed
+// by StepId.
+type sheetLoader func(sheetName string) (map[string]map[string]interface{}, error)
 
-	reader := csv.NewReader(file)
-	reader.TrimLeadingSpace = true
-	reader.FieldsPerRecord = -1
+// sheetCache loads every sheet at most once and keeps records isolated per
+// sheet so identical StepIds in different sheets cannot collide.
+type sheetCache map[string]map[string]map[string]interface{}
 
-	_, _ = reader.Read() // skip header
-
-	var cases []*TestCase
-	var currentCase *TestCase
-
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
+func (c sheetCache) lookup(sheetName, stepID string, load sheetLoader) (map[string]interface{}, error) {
+	if _, loaded := c[sheetName]; !loaded {
+		data, err := load(sheetName)
 		if err != nil {
 			return nil, err
+		}
+		c[sheetName] = data
+	}
+	record, ok := c[sheetName][stepID]
+	if !ok {
+		return nil, fmt.Errorf("step %s not found in test data sheet %s", stepID, sheetName)
+	}
+	return record, nil
+}
+
+// parseCaseRows turns case-table rows (header excluded) into test cases.
+// Rows follow the testCaseColumns schema; a non-empty first column starts a
+// new case. Steps whose test data cannot be resolved are kept with a
+// SkipReason so the executor records a failure instead of dropping them.
+func parseCaseRows(rows [][]string, loadSheet sheetLoader) ([]*TestCase, error) {
+	var cases []*TestCase
+	var currentCase *TestCase
+	cache := sheetCache{}
+
+	for _, record := range rows {
+		if isEmptyRow(record) {
+			continue
 		}
 		if len(record) < testCaseColumns {
 			return nil, fmt.Errorf("invalid row (got %d columns, expected %d): %v", len(record), testCaseColumns, record)
@@ -77,7 +79,7 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 			MsgType:        record[8],
 			TestData:       record[9],
 		}
-		data, err := p.findTestData(step.TestData, step.StepID)
+		data, err := cache.lookup(step.TestData, step.StepID, loadSheet)
 		if err != nil {
 			// Keep the step but mark it so the executor records a failure -
 			// dropping it here would let the case pass with missing steps.
@@ -91,21 +93,43 @@ func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
 	return cases, nil
 }
 
-func (p *CSVCaseParser) findTestData(sheetName, stepID string) (map[string]interface{}, error) {
-	if p.sheetCache == nil {
-		p.sheetCache = make(map[string]map[string]map[string]interface{})
+// CSVCaseParser implements the CaseParser interface for CSV files.
+type CSVCaseParser struct {
+	FilePath string
+}
+
+// Parse parses CSV data and returns test cases.
+func (p *CSVCaseParser) Parse() ([]*TestCase, error) {
+	file, err := os.Open(p.FilePath)
+	if err != nil {
+		return nil, err
 	}
-	dataFile := filepath.Join(filepath.Dir(p.FilePath), sheetName+filepath.Ext(p.FilePath))
-	if _, loaded := p.sheetCache[sheetName]; !loaded {
-		data, err := LoadCSVToMap(dataFile)
+	defer func() { _ = file.Close() }()
+
+	reader := csv.NewReader(file)
+	reader.TrimLeadingSpace = true
+	reader.FieldsPerRecord = -1
+
+	_, _ = reader.Read() // skip header
+
+	var rows [][]string
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			return nil, err
 		}
-		p.sheetCache[sheetName] = data
+		rows = append(rows, record)
 	}
-	record, ok := p.sheetCache[sheetName][stepID]
-	if !ok {
-		return nil, fmt.Errorf("step %s not found in test data file %s", stepID, dataFile)
-	}
-	return record, nil
+
+	return parseCaseRows(rows, p.loadDataSheet)
+}
+
+// loadDataSheet reads one test data sheet file (<sheet><ext> next to the
+// case file) into records keyed by StepId.
+func (p *CSVCaseParser) loadDataSheet(sheetName string) (map[string]map[string]interface{}, error) {
+	dataFile := filepath.Join(filepath.Dir(p.FilePath), sheetName+filepath.Ext(p.FilePath))
+	return LoadCSVToMap(dataFile)
 }
