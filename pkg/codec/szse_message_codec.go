@@ -43,33 +43,34 @@ func (c *BinarySzseMessageCodec) JSONToStruct(jsonMap map[string]interface{}) (c
 	}
 	switch msg := message.(type) {
 	case *szse_bin.NewOrder:
-		if applID, ok := jsonMap["ApplID"].(string); ok {
-			ext, err := szse_bin.NewNewOrderMessageByApplId(applID)
-			if err != nil {
-				log.Warnf("ApplID %q not registered for %T, skipping extension: %v", applID, msg, err)
-			} else {
-				msg.ApplExtend = ext
-			}
-		} else {
-			log.Warnf("%T data has no ApplID, skipping ApplExtend", msg)
-		}
+		msg.ApplExtend = applExtendFor(jsonMap, msg, szse_bin.NewNewOrderMessageByApplId)
 	case *szse_bin.ExecutionConfirm:
-		if applID, ok := jsonMap["ApplID"].(string); ok {
-			ext, err := szse_bin.NewExecutionConfirmMessageByApplId(applID)
-			if err != nil {
-				log.Warnf("ApplID %q not registered for %T, skipping extension: %v", applID, msg, err)
-			} else {
-				msg.ApplExtend = ext
-			}
-		} else {
-			log.Warnf("%T data has no ApplID, skipping ApplExtend", msg)
-		}
+		msg.ApplExtend = applExtendFor(jsonMap, msg, szse_bin.NewExecutionConfirmMessageByApplId)
+	case *szse_bin.ExecutionReport:
+		msg.ApplExtend = applExtendFor(jsonMap, msg, szse_bin.NewExecutionReportMessageByApplId)
 	}
 	err = ConvertMapToStruct(jsonMap, message)
 	if err != nil {
 		return nil, err
 	}
 	return message, nil
+}
+
+// applExtendFor 按 ApplID 预填消息的扩展字段结构。必须覆盖所有带 ApplExtend 的消息类型：
+// 协议解码端会按 ApplId 无条件实例化扩展（非 nil），期望消息若留 nil 会导致
+// Receive 步骤的全字段对比出现 nil≠空结构 的误报。
+func applExtendFor[F codec.BinaryCodec](jsonMap map[string]interface{}, msg codec.BinaryCodec, factory func(string) (F, error)) codec.BinaryCodec {
+	applID, ok := jsonMap["ApplID"].(string)
+	if !ok {
+		log.Warnf("%T data has no ApplID, skipping ApplExtend", msg)
+		return nil
+	}
+	ext, err := factory(applID)
+	if err != nil {
+		log.Warnf("ApplID %q not registered for %T, skipping extension: %v", applID, msg, err)
+		return nil
+	}
+	return ext
 }
 
 // Encode encodes a message into a byte slice prefixed with its message type.
