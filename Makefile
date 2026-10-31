@@ -9,8 +9,12 @@ FCE2E_DIR ?= $(CURDIR)/../fc-e2e
 BIN         := bin/gt-auto
 BIN_FBSDK   := bin/gt-auto-fcounter
 GO_TAGS_FBS := -tags fbsdk
+# rpath 随检出路径进入链接输入：检出搬过位置时 go 构建缓存必然失效重链，
+# 否则陈旧二进制会一直引用旧 install_name（go 缓存不感知 dylib 变化）；
+# 同时让产物在安装到 ~/go/bin 后仍能按 rpath 找到本检出的 cdylib
+CGO_LDFLAGS_FBS = -L$(abspath $(FBSDK_DIR)/target/release) -Wl,-rpath,$(abspath $(FBSDK_DIR)/target/release)
 
-.PHONY: help build build-fbsdk install run test test-fbsdk vet vet-fbsdk e2e-fcounter clean
+.PHONY: help build build-fbsdk install install-fbsdk run test test-fbsdk vet vet-fbsdk e2e-fcounter clean
 
 help: ## 列出全部目标
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -20,10 +24,14 @@ build: ## 构建纯 Go 版二进制（bin/gt-auto；不含 fbsdk 模拟器）
 
 build-fbsdk: ## 构建内嵌 FB-SDK 的二进制（自动先构建 Rust cdylib）
 	cd $(FBSDK_DIR) && cargo build -p fbsdk-ffi --release
-	CGO_ENABLED=1 CGO_LDFLAGS="-L$(abspath $(FBSDK_DIR)/target/release)" go build $(GO_TAGS_FBS) -o $(BIN_FBSDK) ./cmd/gt-auto/
+	CGO_ENABLED=1 CGO_LDFLAGS="$(CGO_LDFLAGS_FBS)" go build $(GO_TAGS_FBS) -o $(BIN_FBSDK) ./cmd/gt-auto/
 
 install: build ## 构建并安装到 ~/go/bin
 	cp $(BIN) ~/go/bin/
+
+install-fbsdk: build-fbsdk ## 构建并安装内嵌 FB-SDK 的二进制到 ~/go/bin（fc-e2e 等经 PATH/GT_AUTO_BIN 消费）
+	mkdir -p ~/go/bin
+	cp $(BIN_FBSDK) ~/go/bin/
 
 run: build ## 自回环示例：risk / sse / szse 三协议（gt-auto 双侧模拟器互打）
 	./$(BIN) --casePath pkg/testcase/testdata/risk_test_case.csv --config pkg/config/testdata/gw-auto-risk.toml
@@ -35,7 +43,7 @@ test: ## 全量测试（纯 Go；-race）
 
 test-fbsdk: ## FB-SDK 模拟器测试（自动构建 cdylib；-tags fbsdk -race）
 	cd $(FBSDK_DIR) && cargo build -p fbsdk-ffi --release
-	CGO_ENABLED=1 CGO_LDFLAGS="-L$(abspath $(FBSDK_DIR)/target/release)" go test $(GO_TAGS_FBS) -race ./...
+	CGO_ENABLED=1 CGO_LDFLAGS="$(CGO_LDFLAGS_FBS)" go test $(GO_TAGS_FBS) -race ./...
 
 vet: ## 静态检查（纯 Go）
 	go vet ./...
