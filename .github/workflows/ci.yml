@@ -11,25 +11,20 @@ env:
   GOPRIVATE: github.com/xinchentechnote/fbsdk/*
 
 jobs:
-  # 纯 Go 构建与测试（模块图仍需 ../fbsdk/go 存在——fbsdk 模拟器经
-  # 目录 replace 引入，默认构建不编译 cgo 但加载模块必须可解析）
+  # 纯 Go 构建与测试。fbsdk/go 为私有模块：GOPRIVATE 跳过 proxy/sumdb，
+  # git 凭证经 insteadOf 注入（注意 go 的 git URL 不带 .git 后缀，
+  # 凭证步骤里 .git 与无后缀两条都要有）
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout gt-auto
         uses: actions/checkout@v5
 
-      - name: Checkout fbsdk（私有仓，模块图需要）
-        uses: actions/checkout@v5
-        with:
-          repository: xinchentechnote/fbsdk
-          token: ${{ secrets.XC_READ_TOKEN }}
-          path: fbsdk
-
       - name: 私有仓拉取凭证（fcp/fbsdk）
         run: |
           git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fcp.git".insteadOf "https://github.com/xinchentechnote/fcp.git"
           git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk.git".insteadOf "https://github.com/xinchentechnote/fbsdk.git"
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk".insteadOf "https://github.com/xinchentechnote/fbsdk"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -52,7 +47,9 @@ jobs:
       - name: Run tests
         run: go test -race -v ./...
 
-  # fbsdk 模拟器（cgo）：Rust cdylib 构建 + -tags fbsdk 全量测试
+  # fbsdk 模拟器（cgo）：Rust cdylib 构建 + -tags fbsdk 全量测试。
+  # actions/checkout 只能检出到工作区内，而 Makefile 默认在仓外一级找
+  # fbsdk（../fbsdk）——以命令行变量 FBSDK_DIR 显式指给 make
   fbsdk-integration:
     runs-on: ubuntu-latest
     steps:
@@ -79,14 +76,21 @@ jobs:
         run: |
           git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fcp.git".insteadOf "https://github.com/xinchentechnote/fcp.git"
           git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk.git".insteadOf "https://github.com/xinchentechnote/fbsdk.git"
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk".insteadOf "https://github.com/xinchentechnote/fbsdk"
 
       - name: Test（-tags fbsdk，含 cdylib 构建）
-        run: make test-fbsdk
+        run: make test-fbsdk FBSDK_DIR="$GITHUB_WORKSPACE/fbsdk"
+        env:
+          # CGO_LDFLAGS 的 -L 只管链接期；Linux 运行期解析 libfbsdk_ffi.so 靠这里
+          LD_LIBRARY_PATH: ${{ github.workspace }}/fbsdk/target/release
 
       - name: Vet（-tags fbsdk）
         run: make vet-fbsdk
 
-  # 全链路验收：fb-sdk ↔ fcounter ↔ gt-auto（沪 + 深）
+  # 全链路验收：fb-sdk ↔ fcounter ↔ gt-auto（沪 + 深）。
+  # 用例与编排的权威副本在 fc-e2e 仓（2026-10 自 fcounter 仓迁出），
+  # 经其脚本执行；脚本默认在检出目录外一级找同级仓，gt-auto 本身即
+  # 工作区根，故 GT_AUTO_DIR 显式指为 ..
   e2e-fcounter:
     runs-on: ubuntu-latest
     steps:
@@ -107,21 +111,33 @@ jobs:
           token: ${{ secrets.XC_READ_TOKEN }}
           path: fcounter
 
+      - name: Checkout fc-e2e
+        uses: actions/checkout@v5
+        with:
+          repository: xinchentechnote/fc-e2e
+          token: ${{ secrets.XC_READ_TOKEN }}
+          path: fc-e2e
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: fcounter/go.mod
+          go-version-file: go.mod
           cache: true
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 私有仓拉取凭证（fcp/fbsdk）
+      - name: 私有仓拉取凭证（fcp/fbsdk/omni-rt-engine）
         run: |
           git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fcp.git".insteadOf "https://github.com/xinchentechnote/fcp.git"
           git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk.git".insteadOf "https://github.com/xinchentechnote/fbsdk.git"
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk".insteadOf "https://github.com/xinchentechnote/fbsdk"
+          # fcounter 提交的 Cargo.lock 为 risk-engine 形态生成（含 rt-core 条目），
+          # 冷缓存下默认构建也会 fetch omni-rt-engine
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/omni-rt-engine.git".insteadOf "https://github.com/xinchentechnote/omni-rt-engine.git"
 
       - name: 全链路验收（构建三方 + 沪深两市场用例）
-        run: cd fcounter && ./scripts/e2e_gt_auto.sh
+        run: cd fc-e2e && ./scripts/e2e_gt_auto.sh
         env:
-          CGO_LDFLAGS: -L${{ github.workspace }}/fbsdk/target/release
+          GT_AUTO_DIR: ..
+          E2E_KEEP: '1'
