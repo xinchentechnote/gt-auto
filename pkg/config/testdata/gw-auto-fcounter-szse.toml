@@ -1,0 +1,20 @@
+# fcounter 全链路自动化测试配置 —— 深市（SZSE 二进制协议）
+# 拓扑：gt-auto fbsdk 模拟器 → fcounter ingress :19401
+#       fcounter gw-szse → gt-auto SZSE 交易所侧 :19302
+receive_timeout_ms = 5000
+
+[[simulators]]
+name = "fcounter_szse_tgw"
+type = "tgw"
+communication = "tcp"
+protocol = "binary-szse"
+listen_address = "127.0.0.1:19302"
+auto_start = true
+
+[[simulators]]
+name = "fcounter_fbsdk_oms"
+type = "fbsdk"
+protocol = "fbsdk"
+server_address = "127.0.0.1:19401"
+client_id = "gt-auto"
+auto_start = false

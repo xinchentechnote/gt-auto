@@ -1,0 +1,2 @@
+StepId,PartitionNo,ReportIndex,ApplID,ExecType,SubmittingPBUID,ClOrdID,SecurityID,OrdStatus,LeavesQty,CumQty,Side,OrdType,OrderQty,Price,OrdRejReason,TransactTime
+order_003,1,1,010,0,00001,500000001,600519,0,100,0,1,2,100,17000000,0,0

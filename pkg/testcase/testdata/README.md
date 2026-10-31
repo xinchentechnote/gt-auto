@@ -12,6 +12,7 @@ gt-auto 自身能力的覆盖样例，随 `go test ./...` 与 `make run` 消费�
 | `sse_test_case.csv` + `sse_*.csv` + `gw-auto-sse.toml` | SSE 协议同构回环 |
 | `szse_test_case.csv` + `szse_*.csv` + `gw-auto-szse.toml` | 深市协议同构回环 |
 | `fcounter_test_case.csv` + `fcounter_*.csv` + `gw-auto-fcounter.toml` | **fbsdk 模拟器**（cgo）+ SSE 交易所侧的双模拟器编排；覆盖多用例解析、fbsdk 类型/协议/会话字段（`client_id`）配置解析（`TestLoadFcounterCase` / `TestFcounterConfigFixture` / `TestFbsdkJSONToStructDispatch`） |
+| `fcounter_szse_test_case.csv` + `fcounter_szse_*.csv` + `gw-auto-fcounter-szse.toml` | 深市（SZSE 二进制）同构场景；ApplExtend 嵌套扩展不做字段级比对（柜台侧携带缺省 tag，flat CSV 无法表达——见 fcounter_002 order_002 注） |
 
 ## 2. 被测系统验收用例（权威副本在 fcounter 仓）
 

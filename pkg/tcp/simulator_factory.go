@@ -51,9 +51,15 @@ func CreateSimulator[T fin_codec.BinaryCodec](config config.SimulatorConfig) (Si
 		}
 		// SSE 交易所侧会话自动应答：网关登录 → PlatformState Open
 		// （counter-gw 约定：收到 Open 即登录就绪；LoginTimeout 5s）
-		if config.Protocol == gtcodec.BinarySSE {
+		// 会话自动应答：网关登录 → 平台状态 Open（SSE/SZSE 各自约定，见 codec 包）
+		switch config.Protocol {
+		case gtcodec.BinarySSE:
 			if frame := gtcodec.SsePlatformOpenFrame(); frame != nil {
 				tgw.AutoReply = map[uint32][]byte{gtcodec.SseMsgTypeLogon: frame}
+			}
+		case gtcodec.BinarySZSE:
+			if frame := gtcodec.SzsePlatformOpenFrame(); frame != nil {
+				tgw.AutoReply = map[uint32][]byte{gtcodec.SzseMsgTypeLogon: frame}
 			}
 		}
 		return tgw, nil

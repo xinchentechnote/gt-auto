@@ -1,0 +1,2 @@
+StepId,ClOrdID,SecurityID,AccountID,PriceMantissa,PriceScale,OrderQty,Market,Side,OrdType
+order_001,500000001,600519,1,17000000,-4,100,2,1,1

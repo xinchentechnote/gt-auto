@@ -1,0 +1,2 @@
+StepId,ApplID,SubmittingPBUID,SecurityID,SecurityIDSource,OwnerType,ClearingFirm,TransactTime,ClOrdID,AccountID,BranchID,Side,OrdType,OrderQty,Price
+order_002,010,00001,600519,102,0,00,19700101000000000,500000001,10002,0001,1,2,100,17000000
