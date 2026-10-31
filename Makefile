@@ -1,10 +1,10 @@
 # gt-auto 构建与测试编排。
 #
 # 默认目标为纯 Go（无需 cgo 与外部仓库）；fbsdk 相关目标依赖同级检出的
-# fbsdk（Rust cdylib）与 fcounter（被测系统），路径可用变量覆盖。
+# fbsdk（Rust cdylib）与 fc-e2e（fcounter 全链路验收编排），路径可用变量覆盖。
 
-FBSDK_DIR    ?= $(CURDIR)/../fbsdk
-FCOUNTER_DIR ?= $(CURDIR)/../fcounter
+FBSDK_DIR ?= $(CURDIR)/../fbsdk
+FCE2E_DIR ?= $(CURDIR)/../fc-e2e
 
 BIN         := bin/gt-auto
 BIN_FBSDK   := bin/gt-auto-fcounter
@@ -43,10 +43,10 @@ vet: ## 静态检查（纯 Go）
 vet-fbsdk: ## 静态检查（-tags fbsdk）
 	go vet $(GO_TAGS_FBS) ./...
 
-e2e-fcounter: ## fcounter 全链路验收（fb-sdk ↔ fcounter ↔ SSE；需同级 fcounter/fbsdk 检出）
-	@test -d $(FCOUNTER_DIR)/.git || { echo "缺少同级 fcounter 检出：$(FCOUNTER_DIR)"; exit 1; }
+e2e-fcounter: ## fcounter 全链路验收（fb-sdk ↔ fcounter ↔ 沪深交易所模拟；用例与编排见 fc-e2e 仓，需同级 fc-e2e/fcounter/fbsdk 检出）
+	@test -d $(FCE2E_DIR)/.git || { echo "缺少同级 fc-e2e 检出：$(FCE2E_DIR)"; exit 1; }
 	@test -d $(FBSDK_DIR)/.git || { echo "缺少同级 fbsdk 检出：$(FBSDK_DIR)"; exit 1; }
-	cd $(FCOUNTER_DIR) && ./scripts/e2e_gt_auto.sh
+	cd $(FCE2E_DIR) && ./scripts/e2e_gt_auto.sh
 
 clean: ## 清理构建产物
 	rm -rf bin/

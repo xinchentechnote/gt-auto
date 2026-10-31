@@ -10,7 +10,7 @@ GT-Auto 是面向金融交易系统的网关自动化测试工具，用于自动
 
 - **协议模拟器**：OMS 侧 TCP 客户端 + TGW 侧 TCP 服务端，当前支持风控、深交所、上交所三种二进制协议，以及 FB-SDK 柜台客户端（`-tags fbsdk`，cgo 绑定 [fbsdk](https://github.com/xinchentechnote/fbsdk) 的 Go 绑定 → Rust 核心）。
 - **SSE 会话自动应答**：交易所侧模拟器对网关登录自动回 PlatformState Open（`counter-gw` 登录就绪约定），会话帧不进入用例队列。
-- **测试用例归属**：本仓 `testdata/` 仅维护工具自测样例；被测系统（fcounter）的验收用例权威副本在其仓库 `e2e/gtauto/`，见 [pkg/testcase/testdata/README.md](pkg/testcase/testdata/README.md)。
+- **测试用例归属**：本仓 `testdata/` 仅维护工具自测样例；被测系统（fcounter）的验收用例权威副本在 [fc-e2e](https://github.com/xinchentechnote/fc-e2e) 仓 `e2e/gtauto/`，见 [pkg/testcase/testdata/README.md](pkg/testcase/testdata/README.md)。
 - **多格式用例驱动**：CSV / Excel（.xlsx）/ JSON 三种用例格式，无需写代码即可编排多步报文流程（发单 → 收回执 → 校验）。
 - **字段级校验**：基于 go-cmp 的期望值/实际值比对，差异以表格（路径 / 期望 / 实际）输出。
 - **结果可信**：所有步骤失败——模拟器不可用、接收超时、回包类型不符、用例数据错误——均计入失败并以非零退出码结束，CI 可直接判定结果；运行结束生成结构化报告（JSON/HTML，含汇总、步骤结果、字段级差异）。

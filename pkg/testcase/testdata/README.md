@@ -14,17 +14,17 @@ gt-auto 自身能力的覆盖样例，随 `go test ./...` 与 `make run` 消费�
 | `fcounter_test_case.csv` + `fcounter_*.csv` + `gw-auto-fcounter.toml` | **fbsdk 模拟器**（cgo）+ SSE 交易所侧的双模拟器编排；覆盖多用例解析、fbsdk 类型/协议/会话字段（`client_id`）配置解析（`TestLoadFcounterCase` / `TestFcounterConfigFixture` / `TestFbsdkJSONToStructDispatch`） |
 | `fcounter_szse_test_case.csv` + `fcounter_szse_*.csv` + `gw-auto-fcounter-szse.toml` | 深市（SZSE 二进制）同构场景；ApplExtend 嵌套扩展不做字段级比对（柜台侧携带缺省 tag，flat CSV 无法表达——见 fcounter_002 order_002 注） |
 
-## 2. 被测系统验收用例（权威副本在 fcounter 仓）
+## 2. 被测系统验收用例（权威副本在 fc-e2e 仓）
 
 `fcounter_*` 套件同时是 **fcounter 的发布验收标准**（受理确认先行、回报序号分配、
 OrdType/ClOrdID 映射、0x0020 撤单拒绝码等 counter-design 契约）。**权威副本维护在
-[fcounter 仓](https://github.com/xinchentechnote/fcounter) 的 `e2e/gtauto/`**，
-由其 `scripts/e2e_gt_auto.sh` 对真柜台执行。
+[fc-e2e 仓](https://github.com/xinchentechnote/fc-e2e) 的 `e2e/gtauto/`**（2026-10
+自 fcounter 仓迁入），由其 `scripts/e2e_gt_auto.sh` 对真柜台执行。
 
 ### 同步规则
 
-* counter 协议/字段映射/回报语义变更 → 先改 fcounter 仓的权威副本（随 counter PR），
-  再同步本目录副本（本仓 PR），两侧用例内容保持一致。
+* counter 协议/字段映射/回报语义变更 → 先改 fc-e2e 仓的权威副本（随 fc-e2e PR，
+  对真柜台验证），再同步本目录副本（本仓 PR），两侧用例内容保持一致。
 * 本目录副本仅在 `-tags fbsdk` 且对真柜台运行时执行完整链路；默认 `go test` 只覆盖
   解析与构造（无网络、无 cgo）。
 
