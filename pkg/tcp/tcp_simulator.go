@@ -50,6 +50,9 @@ type OmsSimulator[T fin_codec.BinaryCodec] struct {
 	queue  chan receivedMessage
 	Codec  codec.MessageCodec
 	Framer codec.Framer
+	// AutoReply 会话自动应答表：收到 key 消息即回写 value 帧（协议级握手，
+	// 独立于用例步骤；如 SSE 网关登录 → PlatformState Open）。
+	AutoReply map[uint32][]byte
 }
 
 // TgwSimulator simulates the TGW server
@@ -64,6 +67,9 @@ type TgwSimulator[T fin_codec.BinaryCodec] struct {
 	queue  chan receivedMessage
 	Codec  codec.MessageCodec
 	Framer codec.Framer
+	// AutoReply 会话自动应答表：收到 key 消息即回写 value 帧（协议级握手，
+	// 独立于用例步骤；如 SSE 网关登录 → PlatformState Open）。
+	AutoReply map[uint32][]byte
 }
 
 func (sim *OmsSimulator[T]) GetCodec() codec.MessageCodec {
@@ -249,6 +255,16 @@ func (sim *TgwSimulator[T]) handleClient(conn net.Conn) {
 			continue
 		}
 		log.Printf("Received message type %d: %+v", msgType, msg)
+		// 会话级自动应答（协议握手，如 SSE 网关登录 → PlatformState Open）：
+		// 应答后该帧即被会话层消费——不入用例队列，避免污染后续 Receive 步骤
+		if reply, ok := sim.AutoReply[msgType]; ok {
+			if err := sim.sendByte(reply); err != nil {
+				log.Printf("auto-reply failed (msg %d): %v", msgType, err)
+			} else {
+				log.Printf("auto-replied session frame for msg %d", msgType)
+				continue
+			}
+		}
 		sim.queue <- receivedMessage{MsgType: msgType, Body: msg}
 	}
 }

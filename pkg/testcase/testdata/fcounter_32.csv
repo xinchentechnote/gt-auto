@@ -1,0 +1,2 @@
+StepId,Pbu,SetID,ReportIndex,BizID,ExecType,BizPbu,ClOrdID,SecurityID,Account,OwnerType,Side,Price,OrderQty,LeavesQty,CxlQty,OrdType,TimeInForce,OrdStatus,OrigClOrdID,ClearingFirm,BranchID,OrdRejReason,OrdCnfmID,OrigOrdCnfmID,TradeDate,TransactTime,UserInfo
+order_003,00001,1,1,1,0,00001,500000001,600519,A123456789,0,1,17000000,100,100,0,1,0,0,,,300,0,0001,0,20261030,0,u1

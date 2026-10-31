@@ -1,0 +1,2 @@
+StepId,SeqNum,TransactTime,ClOrdID,ExecID,LastQty,CumQty,LeavesQty,LastPxMantissa,LastPxScale,SecurityID,Market,Side,OrdStatus
+order_006,2,0,500000001,1,100,100,0,17000000,-4,600519,1,1,2

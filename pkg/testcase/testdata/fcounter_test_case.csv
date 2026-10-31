@@ -1,0 +1,9 @@
+case_id,case_title,step_id,sleep_ms,step_desc,action_type,verify_required,test_tool,msg_type,test_data
+fcounter_001,下单全链路,order_001,1,SDK 发单,Send,N,fcounter_fbsdk_oms,64,fcounter_64
+,,order_002,1,交易所收到委托,Receive,Y,fcounter_sse_tgw,58,fcounter_58
+,,order_003,1,交易所回受理确认,Send,N,fcounter_sse_tgw,32,fcounter_32
+,,order_004,1,交易所回成交回报,Send,N,fcounter_sse_tgw,103,fcounter_103
+,,order_005,1,SDK 收到受理确认,Receive,N,fcounter_fbsdk_oms,66,fcounter_66
+,,order_006,1,SDK 收到成交回报,Receive,Y,fcounter_fbsdk_oms,68,fcounter_68
+fcounter_002,撤单拒绝,order_010,1,SDK 撤单未知订单,Send,N,fcounter_fbsdk_oms,65,fcounter_65
+,,order_011,1,SDK 收到撤单拒绝,Receive,Y,fcounter_fbsdk_oms,67,fcounter_67

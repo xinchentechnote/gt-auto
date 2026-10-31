@@ -1,0 +1,31 @@
+# fcounter 全链路自动化测试配置（fb-sdk ↔ fcounter ↔ 沪深交易所模拟）
+#
+# 拓扑：
+#   gt-auto fbsdk 模拟器(客户端) ──▶ fcounter ingress :19401
+#   fcounter gw-sse ──────────────▶ gt-auto SSE 交易所侧 :19301
+#
+# 运行前置（见 fcounter 仓 scripts/e2e_gt_auto.sh）：
+#   cargo build -p fbsdk-ffi --release        # fbsdk 仓（cdylib）
+#   cargo build --release -p counter-app      # fcounter 仓
+#   go build -tags fbsdk -o bin/gt-auto ./cmd/gt-auto
+
+receive_timeout_ms = 5000
+
+# ---- 交易所侧：SSE 二进制协议服务端（受理 counter-gw-sse 的连接）----
+# 会话自动应答：网关 Logon → PlatformState Open（counter-gw 登录就绪约定）
+[[simulators]]
+name = "fcounter_sse_tgw"
+type = "tgw"
+communication = "tcp"
+protocol = "binary-sse"
+listen_address = "127.0.0.1:19301"
+auto_start = true
+
+# ---- 客户端侧：FB-SDK 真实 SDK（cgo 绑定 Rust 核心）----
+[[simulators]]
+name = "fcounter_fbsdk_oms"
+type = "fbsdk"
+protocol = "fbsdk"
+server_address = "127.0.0.1:19401"
+client_id = "gt-auto"
+auto_start = false

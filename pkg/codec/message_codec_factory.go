@@ -17,6 +17,9 @@ const (
 	StepSZSE = "step-szse"
 	// StepSSE shanghai stock exchange step protocol
 	StepSSE = "step-sse"
+
+	// Fbsdk FB-SDK 柜台客户端协议（cgo 绑定 Rust 核心；-tags fbsdk 构建启用）
+	Fbsdk = "fbsdk"
 )
 
 // defaultMessageCodecFactory is the shared factory instance; the factory is
@@ -52,6 +55,11 @@ func (f *DefaultMessageCodecFactory) GetCodec(proto string) (MessageCodec, error
 		return &BinarySzseMessageCodec{}, nil
 	case BinarySSE:
 		return &BinarySseMessageCodec{}, nil
+	case Fbsdk:
+		if FbsdkCodecHook == nil {
+			return nil, fbsdkHooksMissing()
+		}
+		return FbsdkCodecHook()
 	default:
 		return nil, fmt.Errorf("unsupported protocol: %s", proto)
 	}
@@ -66,6 +74,11 @@ func (f *DefaultMessageCodecFactory) GetFramer(proto string) (Framer, error) {
 		return &SzseBinFramer{}, nil
 	case BinarySSE:
 		return &SseBinFramer{}, nil
+	case Fbsdk:
+		if FbsdkFramerHook == nil {
+			return nil, fbsdkHooksMissing()
+		}
+		return FbsdkFramerHook()
 	default:
 		return nil, fmt.Errorf("unsupported protocol: %s", proto)
 	}

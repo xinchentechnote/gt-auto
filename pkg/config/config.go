@@ -45,6 +45,9 @@ type SimulatorConfig struct {
 	ServerAddress string `toml:"server_address"`
 	ListenAddress string `toml:"listen_address"`
 	AutoStart     bool   `toml:"auto_start"`
+	// ClientID / Token —— fbsdk 模拟器的会话标识与认证凭据（其他类型忽略）
+	ClientID string `toml:"client_id"`
+	Token    string `toml:"token"`
 }
 
 // ParseConfig reads the configuration file and returns a GwAutoConfig object

@@ -4,6 +4,7 @@ go 1.25.5
 
 require (
 	github.com/BurntSushi/toml v1.5.0
+	github.com/xinchentechnote/fbsdk/go v0.0.0
 	github.com/google/go-cmp v0.7.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sirupsen/logrus v1.9.3
@@ -36,3 +37,5 @@ require (
 	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/xinchentechnote/fbsdk/go => ../fbsdk/go

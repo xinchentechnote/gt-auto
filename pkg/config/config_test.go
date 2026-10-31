@@ -45,3 +45,34 @@ func TestParseConfigMissingFile(t *testing.T) {
 	_, err = config.ParseConfig("testdata/gw-auto-szse.toml")
 	assert.NoError(t, err)
 }
+
+// TestParseFcounterConfig —— fcounter 全链路配置（工具自测样例）：
+// 覆盖 fbsdk 模拟器类型/协议与 client_id/token 会话字段解析。
+func TestParseFcounterConfig(t *testing.T) {
+	config, err := config.ParseConfig("testdata/gw-auto-fcounter.toml")
+	if err != nil {
+		t.Fatalf("failed to parse config: %v", err)
+	}
+	assert.NotNil(t, config)
+	assert.Len(t, config.Simulators, 2)
+
+	// 声明序：tgw（SSE 交易所侧，自启动）在前
+	assert.Equal(t, "fcounter_sse_tgw", config.Simulators[0].Name)
+	assert.Equal(t, "tgw", config.Simulators[0].Type)
+	assert.Equal(t, "binary-sse", config.Simulators[0].Protocol)
+	assert.Equal(t, "127.0.0.1:19301", config.Simulators[0].ListenAddress)
+	assert.True(t, config.Simulators[0].AutoStart)
+
+	// fbsdk 客户端侧：惰性启动，携带会话字段
+	fbsdk := config.Simulators[1]
+	assert.Equal(t, "fcounter_fbsdk_oms", fbsdk.Name)
+	assert.Equal(t, "fbsdk", fbsdk.Type)
+	assert.Equal(t, "fbsdk", fbsdk.Protocol)
+	assert.Equal(t, "127.0.0.1:19401", fbsdk.ServerAddress)
+	assert.Equal(t, "gt-auto", fbsdk.ClientID)
+	assert.Equal(t, "", fbsdk.Token)
+	assert.False(t, fbsdk.AutoStart)
+
+	config.InitConfigMap()
+	assert.Equal(t, len(config.SimulatorMap), 2)
+}
