@@ -4,12 +4,12 @@ go 1.25.5
 
 require (
 	github.com/BurntSushi/toml v1.5.0
-	github.com/xinchentechnote/fbsdk/go v0.0.0
 	github.com/google/go-cmp v0.7.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.6
+	github.com/xinchentechnote/fbsdk/go v0.1.1
 	github.com/xinchentechnote/fin-proto-go v1.0.0
 	github.com/xinchentechnote/fin-proto-risk-bin-go v0.1.0
 	github.com/xinchentechnote/fin-proto-runtime-bin-go v0.1.0
@@ -37,5 +37,3 @@ require (
 	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/xinchentechnote/fbsdk/go => ../fbsdk/go

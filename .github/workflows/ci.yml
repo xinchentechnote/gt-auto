@@ -6,28 +6,122 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  XC_READ_TOKEN: ${{ secrets.XC_READ_TOKEN }}
+  GOPRIVATE: github.com/xinchentechnote/fbsdk/*
+
 jobs:
+  # 纯 Go 构建与测试（模块图仍需 ../fbsdk/go 存在——fbsdk 模拟器经
+  # 目录 replace 引入，默认构建不编译 cgo 但加载模块必须可解析）
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
+      - name: Checkout gt-auto
+        uses: actions/checkout@v5
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
-        cache: true
+      - name: Checkout fbsdk（私有仓，模块图需要）
+        uses: actions/checkout@v5
+        with:
+          repository: xinchentechnote/fbsdk
+          token: ${{ secrets.XC_READ_TOKEN }}
+          path: fbsdk
 
-    - name: Download dependencies
-      run: go mod download
+      - name: 私有仓拉取凭证（fcp/fbsdk）
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fcp.git".insteadOf "https://github.com/xinchentechnote/fcp.git"
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk.git".insteadOf "https://github.com/xinchentechnote/fbsdk.git"
 
-    - name: Verify dependencies
-      run: go mod verify
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
 
-    - name: Build
-      run: make build
+      - name: Download dependencies
+        run: go mod download
 
-    - name: Run tests
-      run: go test -race -v ./...
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build
+        run: make build
+
+      - name: Vet
+        run: make vet
+
+      - name: Run tests
+        run: go test -race -v ./...
+
+  # fbsdk 模拟器（cgo）：Rust cdylib 构建 + -tags fbsdk 全量测试
+  fbsdk-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gt-auto
+        uses: actions/checkout@v5
+
+      - name: Checkout fbsdk
+        uses: actions/checkout@v5
+        with:
+          repository: xinchentechnote/fbsdk
+          token: ${{ secrets.XC_READ_TOKEN }}
+          path: fbsdk
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 私有仓拉取凭证（fcp/fbsdk）
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fcp.git".insteadOf "https://github.com/xinchentechnote/fcp.git"
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk.git".insteadOf "https://github.com/xinchentechnote/fbsdk.git"
+
+      - name: Test（-tags fbsdk，含 cdylib 构建）
+        run: make test-fbsdk
+
+      - name: Vet（-tags fbsdk）
+        run: make vet-fbsdk
+
+  # 全链路验收：fb-sdk ↔ fcounter ↔ gt-auto（沪 + 深）
+  e2e-fcounter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gt-auto
+        uses: actions/checkout@v5
+
+      - name: Checkout fbsdk
+        uses: actions/checkout@v5
+        with:
+          repository: xinchentechnote/fbsdk
+          token: ${{ secrets.XC_READ_TOKEN }}
+          path: fbsdk
+
+      - name: Checkout fcounter
+        uses: actions/checkout@v5
+        with:
+          repository: xinchentechnote/fcounter
+          token: ${{ secrets.XC_READ_TOKEN }}
+          path: fcounter
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: fcounter/go.mod
+          cache: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 私有仓拉取凭证（fcp/fbsdk）
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fcp.git".insteadOf "https://github.com/xinchentechnote/fcp.git"
+          git config --global url."https://x-access-token:${{ secrets.XC_READ_TOKEN }}@github.com/xinchentechnote/fbsdk.git".insteadOf "https://github.com/xinchentechnote/fbsdk.git"
+
+      - name: 全链路验收（构建三方 + 沪深两市场用例）
+        run: cd fcounter && ./scripts/e2e_gt_auto.sh
+        env:
+          CGO_LDFLAGS: -L${{ github.workspace }}/fbsdk/target/release

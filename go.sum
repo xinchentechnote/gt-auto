@@ -29,6 +29,8 @@ github.com/tiendc/go-deepcopy v1.7.2 h1:Ut2yYR7W9tWjTQitganoIue4UGxZwCcJy3orjrrI
 github.com/tiendc/go-deepcopy v1.7.2/go.mod h1:4bKjNC2r7boYOkD2IOuZpYjmlDdzjbpTRyCx+goBCJQ=
 github.com/urfave/cli/v2 v2.27.6 h1:VdRdS98FNhKZ8/Az8B7MTyGQmpIr36O1EHybx/LaZ4g=
 github.com/urfave/cli/v2 v2.27.6/go.mod h1:3Sevf16NykTbInEnD0yKkjDAeZDS0A6bzhBH5hrMvTQ=
+github.com/xinchentechnote/fbsdk/go v0.1.1 h1:MbH6O4ielxO1VDo0C94AOR9w5gr0YyFh1ktSRBNaiXM=
+github.com/xinchentechnote/fbsdk/go v0.1.1/go.mod h1:5IuA42ZGd4zxzzFQk5zeXm+2460RYZIeIndzi4ZWc08=
 github.com/xinchentechnote/fin-proto-go v1.0.0 h1:4cCxPyYiAmavTNjutRV/L6aJu/1aFJVhlBtxHPrsjWU=
 github.com/xinchentechnote/fin-proto-go v1.0.0/go.mod h1:u1VBGqet6uP2gcWq8SN/SNdPkWJt+iNTILr3EfcMVaw=
 github.com/xinchentechnote/fin-proto-risk-bin-go v0.1.0 h1:ZERs5/zF9fnxKRl1fAtpBJzEfrUz3y8+EkuXhnHDM0w=

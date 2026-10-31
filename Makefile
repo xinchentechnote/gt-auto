@@ -20,7 +20,7 @@ build: ## 构建纯 Go 版二进制（bin/gt-auto；不含 fbsdk 模拟器）
 
 build-fbsdk: ## 构建内嵌 FB-SDK 的二进制（自动先构建 Rust cdylib）
 	cd $(FBSDK_DIR) && cargo build -p fbsdk-ffi --release
-	CGO_ENABLED=1 go build $(GO_TAGS_FBS) -o $(BIN_FBSDK) ./cmd/gt-auto/
+	CGO_ENABLED=1 CGO_LDFLAGS="-L$(abspath $(FBSDK_DIR)/target/release)" go build $(GO_TAGS_FBS) -o $(BIN_FBSDK) ./cmd/gt-auto/
 
 install: build ## 构建并安装到 ~/go/bin
 	cp $(BIN) ~/go/bin/
@@ -35,7 +35,7 @@ test: ## 全量测试（纯 Go；-race）
 
 test-fbsdk: ## FB-SDK 模拟器测试（自动构建 cdylib；-tags fbsdk -race）
 	cd $(FBSDK_DIR) && cargo build -p fbsdk-ffi --release
-	CGO_ENABLED=1 go test $(GO_TAGS_FBS) -race ./...
+	CGO_ENABLED=1 CGO_LDFLAGS="-L$(abspath $(FBSDK_DIR)/target/release)" go test $(GO_TAGS_FBS) -race ./...
 
 vet: ## 静态检查（纯 Go）
 	go vet ./...
